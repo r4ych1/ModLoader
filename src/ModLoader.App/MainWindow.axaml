@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ModLoader.App.MainWindow"
+        Width="980"
+        Height="760"
+        Title="ModLoader - Feature 001">
+  <Window.Styles>
+    <Style Selector="Border.DropZone">
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderBrush" Value="#6b7280" />
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+  </Window.Styles>
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="20" Spacing="12">
+      <TextBlock FontSize="22" FontWeight="Bold" Text="Feature 001: Drop Inputs" />
+      <TextBlock Foreground="#4b5563" Text="Drop source-port executable, IWAD files, and Mod files into their zones." />
+
+      <TextBlock FontWeight="SemiBold" Text="Source Port (.exe only)" />
+      <Border Classes="DropZone"
+              DragDrop.AllowDrop="True"
+              DragDrop.DragOver="OnDropZoneDragOver"
+              DragDrop.Drop="OnSourcePortDrop">
+        <StackPanel>
+          <TextBlock Text="Drop one or more files. Last valid .exe becomes active." />
+          <TextBlock Margin="0,8,0,0"
+                     FontWeight="SemiBold"
+                     Text="{Binding SourcePortPath, FallbackValue=No source port selected}" />
+          <Button Margin="0,10,0,0"
+                  Content="Clear Source Port"
+                  IsEnabled="{Binding HasSourcePort}"
+                  Click="OnClearSourcePortClicked" />
+        </StackPanel>
+      </Border>
+
+      <TextBlock FontWeight="SemiBold" Text="IWAD Inputs" />
+      <Border Classes="DropZone"
+              DragDrop.AllowDrop="True"
+              DragDrop.DragOver="OnDropZoneDragOver"
+              DragDrop.Drop="OnIwadDrop">
+        <StackPanel>
+          <TextBlock Text="Allowed: .wad, .pk3, .iwad, .ipk3, .ipk7, .pk7. Directories scan top-level files only." />
+          <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding Iwads}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                  <TextBlock Width="720" Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                  <Button Content="Remove" Tag="{Binding}" Click="OnRemoveIwadClicked" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <TextBlock FontWeight="SemiBold" Text="Mod Inputs" />
+      <Border Classes="DropZone"
+              DragDrop.AllowDrop="True"
+              DragDrop.DragOver="OnDropZoneDragOver"
+              DragDrop.Drop="OnModDrop">
+        <StackPanel>
+          <TextBlock Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz. Directories scan top-level files only." />
+          <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding Mods}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                  <TextBlock Width="720" Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                  <Button Content="Remove" Tag="{Binding}" Click="OnRemoveModClicked" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

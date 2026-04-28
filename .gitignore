@@ -54,8 +54,12 @@ Thumbs.db
 # Avalonia-specific
 *.a
 *.a.sha512
+**/.avalonia-build-tasks/
 
 # Node modules (if using npm for web assets)
 node_modules/
 package-lock.json
 yarn.lock
+
+# NuGet migration artifacts (generated)
+**/NuGet/Migrations/
