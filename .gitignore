@@ -1,0 +1,61 @@
+# Build results
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# NuGet
+.nuget/
+*.nupkg
+*.snupkg
+packages/
+.packages/
+
+# Test Results
+TestResults/
+*.trx
+
+# Code coverage
+coverage/
+*.coverage
+*.coveragexml
+
+# IDE files
+*.csproj.user
+*.csproj.bak
+
+# Build artifacts
+dist/
+publish/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.bak
+
+# Avalonia-specific
+*.a
+*.a.sha512
+
+# Node modules (if using npm for web assets)
+node_modules/
+package-lock.json
+yarn.lock
