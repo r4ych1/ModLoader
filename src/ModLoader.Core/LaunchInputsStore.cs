@@ -43,6 +43,15 @@ public sealed class LaunchInputsStore
 
     public IReadOnlyList<string> Mods => _mods;
 
+    public LaunchInputsStore()
+    {
+    }
+
+    public LaunchInputsStore(LaunchInputsConfig initialState)
+    {
+        LoadFromConfig(initialState);
+    }
+
     public void ProcessSourcePortDrop(IEnumerable<string> droppedPaths)
     {
         string? finalAcceptedSourcePort = null;
@@ -101,6 +110,66 @@ public sealed class LaunchInputsStore
         RemovePath(path, _mods, _modPathSet);
     }
 
+    public void LoadFromConfig(LaunchInputsConfig state)
+    {
+        SourcePortPath = null;
+        _iwads.Clear();
+        _mods.Clear();
+        _iwadPathSet.Clear();
+        _modPathSet.Clear();
+
+        if (!string.IsNullOrWhiteSpace(state.SourcePortPath))
+        {
+            SourcePortPath = PathNormalizer.NormalizeAbsolutePath(state.SourcePortPath);
+        }
+
+        foreach (var iwadPath in state.Iwads ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(iwadPath))
+            {
+                continue;
+            }
+
+            AddUniquePath(iwadPath, _iwads, _iwadPathSet);
+        }
+
+        foreach (var modPath in state.Mods ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(modPath))
+            {
+                continue;
+            }
+
+            AddUniquePath(modPath, _mods, _modPathSet);
+        }
+    }
+
+    public bool RemoveMissingPaths()
+    {
+        var changed = false;
+
+        if (!string.IsNullOrWhiteSpace(SourcePortPath) && !File.Exists(SourcePortPath))
+        {
+            SourcePortPath = null;
+            changed = true;
+        }
+
+        changed |= RemoveMissingEntries(_iwads, _iwadPathSet);
+        changed |= RemoveMissingEntries(_mods, _modPathSet);
+
+        return changed;
+    }
+
+    public LaunchInputsConfig CreateSnapshot()
+    {
+        return new LaunchInputsConfig
+        {
+            SourcePortPath = SourcePortPath,
+            Iwads = [.. _iwads],
+            Mods = [.. _mods]
+        };
+    }
+
     private static bool HasAllowedExtension(string path, HashSet<string> allowedExtensions)
     {
         var extension = Path.GetExtension(path);
@@ -127,5 +196,25 @@ public sealed class LaunchInputsStore
         }
 
         orderedPaths.RemoveAll(existingPath => string.Equals(existingPath, normalizedPath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool RemoveMissingEntries(List<string> orderedPaths, HashSet<string> dedupeSet)
+    {
+        var changed = false;
+
+        for (var i = orderedPaths.Count - 1; i >= 0; i--)
+        {
+            var path = orderedPaths[i];
+            if (File.Exists(path))
+            {
+                continue;
+            }
+
+            orderedPaths.RemoveAt(i);
+            dedupeSet.Remove(path);
+            changed = true;
+        }
+
+        return changed;
     }
 }

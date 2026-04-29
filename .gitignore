@@ -56,6 +56,9 @@ Thumbs.db
 *.a.sha512
 **/.avalonia-build-tasks/
 
+# .NET SDK artifacts
+.dotnet/
+
 # Node modules (if using npm for web assets)
 node_modules/
 package-lock.json

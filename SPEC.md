@@ -15,10 +15,13 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
   - Authoritative spec: `Features/001-drop-zones.md`.
 - Feature 002: Full-border drop zones and selectable IWAD/Mod rows.
   - Authoritative spec: `Features/002-border-drop-and-row-selection.md`.
+- Feature 003: Config persistence and startup recovery.
+  - Includes persisted selection state for IWAD and Mod rows.
+  - Authoritative spec: `Features/003-config-persistence-and-recovery.md`.
 
 ## Scope Boundary For Feature 001
 Feature 001 provides in-memory state management and UI interactions only. It does not include:
-- Persistence to disk.
+- Persistence to disk (provided later by Feature 003).
 - Launch execution.
 - Profile management.
 - Recursive directory traversal.
