@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 
 namespace ModLoader.App;
 
@@ -60,6 +61,34 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnIwadRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (IsFromButton(e.Source))
+        {
+            return;
+        }
+
+        if (sender is Border border && border.Tag is string path)
+        {
+            _viewModel.ToggleIwadSelection(path);
+            e.Handled = true;
+        }
+    }
+
+    private void OnModRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (IsFromButton(e.Source))
+        {
+            return;
+        }
+
+        if (sender is Border border && border.Tag is string path)
+        {
+            _viewModel.ToggleModSelection(path);
+            e.Handled = true;
+        }
+    }
+
     private static bool HasFilePayload(DragEventArgs e)
     {
         return e.Data.Contains(DataFormats.Files);
@@ -84,5 +113,28 @@ public partial class MainWindow : Window
         }
 
         return localPaths;
+    }
+
+    private static bool IsFromButton(object? source)
+    {
+        if (source is Button)
+        {
+            return true;
+        }
+
+        if (source is not Avalonia.Visual visual)
+        {
+            return false;
+        }
+
+        foreach (var ancestor in visual.GetVisualAncestors())
+        {
+            if (ancestor is Button)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
