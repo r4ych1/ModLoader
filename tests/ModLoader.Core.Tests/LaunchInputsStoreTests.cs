@@ -105,4 +105,29 @@ public sealed class LaunchInputsStoreTests
             || extension.Equals(".ipk7", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".pkz", StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void LoadFromConfig_AndRemoveMissingPaths_ClearsMissingEntriesAndPreservesOrder()
+    {
+        using var temp = new TempDirectory();
+        var existingIwad = temp.CreateFile("doom.wad");
+        var missingIwad = Path.Combine(temp.Path, "missing.wad");
+        var existingMod = temp.CreateFile("mod-a.pk3");
+        var missingMod = Path.Combine(temp.Path, "missing.pk3");
+        var missingSource = Path.Combine(temp.Path, "gzdoom.exe");
+
+        var store = new LaunchInputsStore(new LaunchInputsConfig
+        {
+            SourcePortPath = missingSource,
+            Iwads = [existingIwad, missingIwad],
+            Mods = [existingMod, missingMod]
+        });
+
+        var changed = store.RemoveMissingPaths();
+
+        Assert.True(changed);
+        Assert.Null(store.SourcePortPath);
+        Assert.Equal([Path.GetFullPath(existingIwad)], store.Iwads.ToArray());
+        Assert.Equal([Path.GetFullPath(existingMod)], store.Mods.ToArray());
+    }
 }

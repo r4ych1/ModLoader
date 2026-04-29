@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.CompilerServices;
 using ModLoader.Core;
 
@@ -7,11 +8,37 @@ namespace ModLoader.App;
 
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
-    private readonly LaunchInputsStore _store = new();
+    private readonly ILaunchInputsPersistence _persistence;
+    private readonly LaunchInputsStore _store;
     private string? _sourcePortPath;
     private string? _selectedIwadPath;
+    private string? _startupWarningMessage;
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public MainWindowViewModel()
+        : this(new JsonLaunchInputsPersistence(Path.Combine(AppContext.BaseDirectory, "modloader.config.json")))
+    {
+    }
+
+    public MainWindowViewModel(ILaunchInputsPersistence persistence)
+    {
+        _persistence = persistence;
+
+        var loadResult = _persistence.Load();
+        _store = new LaunchInputsStore(loadResult.State);
+        InitializeSelectionsFromConfig(loadResult.State);
+
+        var storeSanitized = _store.RemoveMissingPaths();
+
+        StartupWarningMessage = loadResult.WarningMessage;
+        var selectionSanitized = RefreshFromStore();
+
+        if (storeSanitized || selectionSanitized)
+        {
+            PersistState();
+        }
+    }
 
     public string? SourcePortPath
     {
@@ -56,40 +83,64 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public ObservableCollection<string> SelectedModPaths { get; } = [];
 
+    public string? StartupWarningMessage
+    {
+        get => _startupWarningMessage;
+        private set
+        {
+            if (_startupWarningMessage == value)
+            {
+                return;
+            }
+
+            _startupWarningMessage = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasStartupWarning));
+        }
+    }
+
+    public bool HasStartupWarning => !string.IsNullOrWhiteSpace(StartupWarningMessage);
+
     public void ProcessSourcePortDrop(IEnumerable<string> droppedPaths)
     {
         _store.ProcessSourcePortDrop(droppedPaths);
         RefreshFromStore();
+        PersistState();
     }
 
     public void ProcessIwadDrop(IEnumerable<string> droppedPaths)
     {
         _store.ProcessIwadDrop(droppedPaths);
         RefreshFromStore();
+        PersistState();
     }
 
     public void ProcessModDrop(IEnumerable<string> droppedPaths)
     {
         _store.ProcessModDrop(droppedPaths);
         RefreshFromStore();
+        PersistState();
     }
 
     public void ClearSourcePort()
     {
         _store.ClearSourcePort();
         RefreshFromStore();
+        PersistState();
     }
 
     public void RemoveIwad(string path)
     {
         _store.RemoveIwad(path);
         RefreshFromStore();
+        PersistState();
     }
 
     public void RemoveMod(string path)
     {
         _store.RemoveMod(path);
         RefreshFromStore();
+        PersistState();
     }
 
     public void ToggleIwadSelection(string path)
@@ -106,6 +157,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         RefreshRows();
+        PersistState();
     }
 
     public void ToggleModSelection(string path)
@@ -123,15 +175,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         RefreshRows();
+        PersistState();
     }
 
-    private void RefreshFromStore()
+    private bool RefreshFromStore()
     {
         SourcePortPath = _store.SourcePortPath;
         CopyCollection(_store.Iwads, Iwads);
         CopyCollection(_store.Mods, Mods);
-        NormalizeSelections();
+        var selectionChanged = NormalizeSelections();
         RefreshRows();
+        return selectionChanged;
     }
 
     private static void CopyCollection(IReadOnlyList<string> source, ObservableCollection<string> destination)
@@ -143,11 +197,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    private void NormalizeSelections()
+    private bool NormalizeSelections()
     {
-        if (!ContainsPath(Iwads, SelectedIwadPath))
+        var changed = false;
+
+        if (!ContainsPath(Iwads, SelectedIwadPath) && !string.IsNullOrWhiteSpace(SelectedIwadPath))
         {
             SelectedIwadPath = null;
+            changed = true;
         }
 
         var selectedModSnapshot = SelectedModPaths.ToArray();
@@ -159,7 +216,32 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 if (selectedIndex >= 0)
                 {
                     SelectedModPaths.RemoveAt(selectedIndex);
+                    changed = true;
                 }
+            }
+        }
+
+        return changed;
+    }
+
+    private void InitializeSelectionsFromConfig(LaunchInputsConfig state)
+    {
+        if (!string.IsNullOrWhiteSpace(state.SelectedIwadPath))
+        {
+            _selectedIwadPath = PathNormalizer.NormalizeAbsolutePath(state.SelectedIwadPath);
+        }
+
+        foreach (var selectedModPath in state.SelectedModPaths ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(selectedModPath))
+            {
+                continue;
+            }
+
+            var normalizedPath = PathNormalizer.NormalizeAbsolutePath(selectedModPath);
+            if (FindPathIndex(SelectedModPaths, normalizedPath) < 0)
+            {
+                SelectedModPaths.Add(normalizedPath);
             }
         }
     }
@@ -223,6 +305,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private void PersistState()
+    {
+        var snapshot = _store.CreateSnapshot();
+        var persistedConfig = new LaunchInputsConfig
+        {
+            SourcePortPath = snapshot.SourcePortPath,
+            Iwads = [.. snapshot.Iwads],
+            Mods = [.. snapshot.Mods],
+            SelectedIwadPath = SelectedIwadPath,
+            SelectedModPaths = [.. SelectedModPaths]
+        };
+
+        _persistence.Save(persistedConfig);
     }
 }
 

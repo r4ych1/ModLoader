@@ -1,17 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using ModLoader.Core;
 
 namespace ModLoader.App;
 
 public partial class MainWindow : Window
 {
-    private readonly MainWindowViewModel _viewModel = new();
+    private readonly MainWindowViewModel _viewModel;
 
     public MainWindow()
     {
+        var configPath = Path.Combine(AppContext.BaseDirectory, "modloader.config.json");
+        var persistence = new JsonLaunchInputsPersistence(configPath);
+        _viewModel = new MainWindowViewModel(persistence);
+
         InitializeComponent();
         DataContext = _viewModel;
     }
