@@ -18,6 +18,9 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
 - Feature 003: Config persistence and startup recovery.
   - Includes persisted selection state for IWAD and Mod rows.
   - Authoritative spec: `Features/003-config-persistence-and-recovery.md`.
+- Feature 004: Fixed command preview footer and selection-synchronized mod ordering.
+  - Adds generated launch-argument preview (`-iwad`, `-file`) using filenames-only with wrapped footer display, and deterministic mod list reordering by selection sequence.
+  - Authoritative spec: `Features/004-fixed-command-preview-and-selection-order.md`.
 
 ## Scope Boundary For Feature 001
 Feature 001 provides in-memory state management and UI interactions only. It does not include:

@@ -6,6 +6,65 @@ namespace ModLoader.Core.Tests;
 public sealed class MainWindowViewModelTests
 {
     [Fact]
+    public void CommandPreviewArguments_NoSelections_IsEmpty()
+    {
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+
+        Assert.Equal(string.Empty, viewModel.CommandPreviewArguments);
+    }
+
+    [Fact]
+    public void CommandPreviewArguments_IwadOnly_EmitsIwadSegmentOnly()
+    {
+        using var temp = new TempDirectory();
+        var iwad = temp.CreateFile("doom2.wad");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ToggleIwadSelection(iwad);
+
+        Assert.Equal("-iwad doom2.wad", viewModel.CommandPreviewArguments);
+    }
+
+    [Fact]
+    public void CommandPreviewArguments_ModOnly_EmitsFileSegmentOnly_AndQuotesSpaces()
+    {
+        using var temp = new TempDirectory();
+        var modWithSpace = temp.CreateFile("my mod.pk3");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessModDrop([modWithSpace]);
+        viewModel.ToggleModSelection(modWithSpace);
+
+        Assert.Equal("-file \"my mod.pk3\"", viewModel.CommandPreviewArguments);
+    }
+
+    [Fact]
+    public void CommandPreviewArguments_IwadAndMods_UsesDeterministicSegmentOrder()
+    {
+        using var temp = new TempDirectory();
+        var iwad = temp.CreateFile("doom2.wad");
+        var mod1 = temp.CreateFile("mod-a.pk3");
+        var mod2 = temp.CreateFile("mod-b.pk3");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ProcessModDrop([mod1, mod2]);
+
+        viewModel.ToggleIwadSelection(iwad);
+        viewModel.ToggleModSelection(mod2);
+        viewModel.ToggleModSelection(mod1);
+
+        Assert.Equal(
+            "-iwad doom2.wad -file mod-b.pk3 mod-a.pk3",
+            viewModel.CommandPreviewArguments);
+    }
+
+    [Fact]
     public void ClearSourcePort_ClearsOnlySourcePort()
     {
         using var temp = new TempDirectory();
@@ -110,6 +169,54 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ToggleModSelection_ReordersModRowsToSelectionSequence()
+    {
+        using var temp = new TempDirectory();
+        var mod1 = temp.CreateFile("mod-a.pk3");
+        var mod2 = temp.CreateFile("mod-b.pk3");
+        var mod3 = temp.CreateFile("mod-c.pk3");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessModDrop([mod1, mod2, mod3]);
+
+        viewModel.ToggleModSelection(mod3);
+        Assert.Equal(
+            [Path.GetFullPath(mod3), Path.GetFullPath(mod1), Path.GetFullPath(mod2)],
+            viewModel.Mods.ToArray());
+
+        viewModel.ToggleModSelection(mod1);
+        Assert.Equal(
+            [Path.GetFullPath(mod3), Path.GetFullPath(mod1), Path.GetFullPath(mod2)],
+            viewModel.Mods.ToArray());
+
+        viewModel.ToggleModSelection(mod3);
+        Assert.Equal(
+            [Path.GetFullPath(mod1), Path.GetFullPath(mod3), Path.GetFullPath(mod2)],
+            viewModel.Mods.ToArray());
+    }
+
+    [Fact]
+    public void ToggleModSelection_PersistsReorderedModsImmediately()
+    {
+        using var temp = new TempDirectory();
+        var mod1 = temp.CreateFile("mod-a.pk3");
+        var mod2 = temp.CreateFile("mod-b.pk3");
+        var mod3 = temp.CreateFile("mod-c.pk3");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessModDrop([mod1, mod2, mod3]);
+
+        viewModel.ToggleModSelection(mod2);
+        viewModel.ToggleModSelection(mod3);
+
+        Assert.Equal(
+            [Path.GetFullPath(mod2), Path.GetFullPath(mod3), Path.GetFullPath(mod1)],
+            persistence.SavedStates.Last().Mods);
+    }
+
+    [Fact]
     public void RemoveSelectedRows_UpdatesSelectionsWithoutChangingUnrelatedSelections()
     {
         using var temp = new TempDirectory();
@@ -181,7 +288,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public void Constructor_LoadsSelectionState_WhenPersistedSelectionsAreValid()
+    public void Constructor_LoadsSelectionState_AndReordersModsToSelectionSequence()
     {
         using var temp = new TempDirectory();
         var iwad1 = temp.CreateFile("doom1.wad");
@@ -207,9 +314,36 @@ public sealed class MainWindowViewModelTests
 
         Assert.Equal(Path.GetFullPath(iwad2), viewModel.SelectedIwadPath);
         Assert.Equal([Path.GetFullPath(mod2), Path.GetFullPath(mod1)], viewModel.SelectedModPaths);
+        Assert.Equal([Path.GetFullPath(mod2), Path.GetFullPath(mod1)], viewModel.Mods.ToArray());
         Assert.True(viewModel.IwadRows.First(row => row.Path == Path.GetFullPath(iwad2)).IsSelected);
         Assert.True(viewModel.ModRows.First(row => row.Path == Path.GetFullPath(mod2)).IsSelected);
         Assert.True(viewModel.ModRows.First(row => row.Path == Path.GetFullPath(mod1)).IsSelected);
+        Assert.Equal(1, persistence.SaveCallCount);
+        Assert.Equal([Path.GetFullPath(mod2), Path.GetFullPath(mod1)], persistence.SavedStates.Last().Mods);
+    }
+
+    [Fact]
+    public void Constructor_DoesNotPersistWhenPersistedModOrderAlreadyMatchesSelectionSequence()
+    {
+        using var temp = new TempDirectory();
+        var mod1 = temp.CreateFile("mod1.pk3");
+        var mod2 = temp.CreateFile("mod2.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    Mods = [mod2, mod1],
+                    SelectedModPaths = [mod2, mod1]
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        Assert.Equal([Path.GetFullPath(mod2), Path.GetFullPath(mod1)], viewModel.Mods.ToArray());
         Assert.Equal(0, persistence.SaveCallCount);
     }
 

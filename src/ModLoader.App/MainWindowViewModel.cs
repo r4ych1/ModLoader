@@ -33,8 +33,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         StartupWarningMessage = loadResult.WarningMessage;
         var selectionSanitized = RefreshFromStore();
+        var modOrderSynchronized = ApplySelectionSynchronizedModOrdering();
+        if (modOrderSynchronized)
+        {
+            RefreshFromStore();
+        }
 
-        if (storeSanitized || selectionSanitized)
+        if (storeSanitized || selectionSanitized || modOrderSynchronized)
         {
             PersistState();
         }
@@ -78,6 +83,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             _selectedIwadPath = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CommandPreviewArguments));
         }
     }
 
@@ -100,6 +106,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public bool HasStartupWarning => !string.IsNullOrWhiteSpace(StartupWarningMessage);
+
+    public string CommandPreviewArguments => BuildCommandPreviewArguments();
 
     public void ProcessSourcePortDrop(IEnumerable<string> droppedPaths)
     {
@@ -174,7 +182,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             SelectedModPaths.Add(normalizedPath);
         }
 
-        RefreshRows();
+        var modOrderSynchronized = ApplySelectionSynchronizedModOrdering();
+        if (modOrderSynchronized)
+        {
+            RefreshFromStore();
+        }
+        else
+        {
+            RefreshRows();
+            OnPropertyChanged(nameof(CommandPreviewArguments));
+        }
+
         PersistState();
     }
 
@@ -185,6 +203,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         CopyCollection(_store.Mods, Mods);
         var selectionChanged = NormalizeSelections();
         RefreshRows();
+        OnPropertyChanged(nameof(CommandPreviewArguments));
         return selectionChanged;
     }
 
@@ -300,6 +319,43 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         return -1;
+    }
+
+    private bool ApplySelectionSynchronizedModOrdering()
+    {
+        return _store.ReorderModsBySelectionSequence(SelectedModPaths);
+    }
+
+    private string BuildCommandPreviewArguments()
+    {
+        var arguments = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(SelectedIwadPath))
+        {
+            arguments.Add("-iwad");
+            arguments.Add(FormatPreviewFileToken(SelectedIwadPath));
+        }
+
+        if (SelectedModPaths.Count > 0)
+        {
+            arguments.Add("-file");
+            foreach (var selectedModPath in SelectedModPaths)
+            {
+                arguments.Add(FormatPreviewFileToken(selectedModPath));
+            }
+        }
+
+        return string.Join(" ", arguments);
+    }
+
+    private static string FormatPreviewFileToken(string path)
+    {
+        var fileName = Path.GetFileName(path);
+        var displayToken = string.IsNullOrWhiteSpace(fileName) ? path : fileName;
+
+        return displayToken.Contains(' ', StringComparison.Ordinal)
+            ? $"\"{displayToken}\""
+            : displayToken;
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
