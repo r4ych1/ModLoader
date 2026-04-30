@@ -6,6 +6,130 @@ namespace ModLoader.Core.Tests;
 public sealed class MainWindowViewModelTests
 {
     [Fact]
+    public void CanLaunch_RequiresSourcePortAndSelectedIwad()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var iwad = temp.CreateFile("doom2.wad");
+
+        var persistence = new RecordingPersistence();
+        var launcher = new RecordingLauncher();
+        var viewModel = new MainWindowViewModel(persistence, launcher);
+
+        Assert.False(viewModel.CanLaunch);
+
+        viewModel.ProcessSourcePortDrop([source]);
+        Assert.False(viewModel.CanLaunch);
+
+        viewModel.ProcessIwadDrop([iwad]);
+        Assert.False(viewModel.CanLaunch);
+
+        viewModel.ToggleIwadSelection(iwad);
+        Assert.True(viewModel.CanLaunch);
+
+        viewModel.ClearSourcePort();
+        Assert.False(viewModel.CanLaunch);
+    }
+
+    [Fact]
+    public void LaunchSourcePort_WhenReady_UsesFullPathArgumentsFromSelectionOrder()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var iwad = temp.CreateFile("doom2.wad");
+        var mod1 = temp.CreateFile("mod-a.pk3");
+        var mod2 = temp.CreateFile("mod-b.pk3");
+
+        var persistence = new RecordingPersistence();
+        var launcher = new RecordingLauncher();
+        var viewModel = new MainWindowViewModel(persistence, launcher);
+
+        viewModel.ProcessSourcePortDrop([source]);
+        viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ProcessModDrop([mod1, mod2]);
+
+        viewModel.ToggleIwadSelection(iwad);
+        viewModel.ToggleModSelection(mod2);
+        viewModel.ToggleModSelection(mod1);
+
+        viewModel.LaunchSourcePort();
+
+        Assert.Equal(1, launcher.LaunchCallCount);
+        Assert.Equal(Path.GetFullPath(source), launcher.LastExecutablePath);
+        Assert.Equal(
+            [
+                "-iwad",
+                Path.GetFullPath(iwad),
+                "-file",
+                Path.GetFullPath(mod2),
+                Path.GetFullPath(mod1)
+            ],
+            launcher.LastArguments);
+
+        Assert.Equal([Path.GetFullPath(mod2), Path.GetFullPath(mod1)], viewModel.SelectedModPaths);
+        Assert.Equal(Path.GetFullPath(iwad), viewModel.SelectedIwadPath);
+    }
+
+    [Fact]
+    public void LaunchSourcePort_WhenNoSelectedMods_UsesOnlyIwadSegment()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var iwad = temp.CreateFile("doom2.wad");
+
+        var persistence = new RecordingPersistence();
+        var launcher = new RecordingLauncher();
+        var viewModel = new MainWindowViewModel(persistence, launcher);
+
+        viewModel.ProcessSourcePortDrop([source]);
+        viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ToggleIwadSelection(iwad);
+        viewModel.LaunchSourcePort();
+
+        Assert.Equal(1, launcher.LaunchCallCount);
+        Assert.Equal(
+            ["-iwad", Path.GetFullPath(iwad)],
+            launcher.LastArguments);
+    }
+
+    [Fact]
+    public void LaunchSourcePort_WhenNotReady_DoesNotInvokeLauncher()
+    {
+        var persistence = new RecordingPersistence();
+        var launcher = new RecordingLauncher();
+        var viewModel = new MainWindowViewModel(persistence, launcher);
+
+        viewModel.LaunchSourcePort();
+
+        Assert.Equal(0, launcher.LaunchCallCount);
+    }
+
+    [Fact]
+    public void LaunchSourcePort_WhenLauncherThrows_SetsNonBlockingWarningMessage()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var iwad = temp.CreateFile("doom2.wad");
+
+        var persistence = new RecordingPersistence();
+        var launcher = new RecordingLauncher
+        {
+            ExceptionToThrow = new InvalidOperationException("boom")
+        };
+        var viewModel = new MainWindowViewModel(persistence, launcher);
+
+        viewModel.ProcessSourcePortDrop([source]);
+        viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ToggleIwadSelection(iwad);
+
+        viewModel.LaunchSourcePort();
+
+        Assert.Equal(1, launcher.LaunchCallCount);
+        Assert.True(viewModel.HasStartupWarning);
+        Assert.Equal("Launch failed: boom", viewModel.StartupWarningMessage);
+    }
+
+    [Fact]
     public void CommandPreviewArguments_NoSelections_IsEmpty()
     {
         var persistence = new RecordingPersistence();
@@ -402,5 +526,29 @@ internal sealed class RecordingPersistence : ILaunchInputsPersistence
             SelectedIwadPath = config.SelectedIwadPath,
             SelectedModPaths = [.. config.SelectedModPaths]
         });
+    }
+}
+
+internal sealed class RecordingLauncher : ISourcePortLauncher
+{
+    public Exception? ExceptionToThrow { get; set; }
+
+    public int LaunchCallCount { get; private set; }
+
+    public string? LastExecutablePath { get; private set; }
+
+    public IReadOnlyList<string> LastArguments { get; private set; } = [];
+
+    public void Launch(string executablePath, IReadOnlyList<string> arguments)
+    {
+        LaunchCallCount++;
+
+        if (ExceptionToThrow is not null)
+        {
+            throw ExceptionToThrow;
+        }
+
+        LastExecutablePath = executablePath;
+        LastArguments = [.. arguments];
     }
 }

@@ -8,6 +8,7 @@ namespace ModLoader.App;
 
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
+    private readonly ISourcePortLauncher _launcher;
     private readonly ILaunchInputsPersistence _persistence;
     private readonly LaunchInputsStore _store;
     private string? _sourcePortPath;
@@ -17,13 +18,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public MainWindowViewModel()
-        : this(new JsonLaunchInputsPersistence(Path.Combine(AppContext.BaseDirectory, "modloader.config.json")))
+        : this(
+            new JsonLaunchInputsPersistence(Path.Combine(AppContext.BaseDirectory, "modloader.config.json")),
+            new ProcessSourcePortLauncher())
     {
     }
 
     public MainWindowViewModel(ILaunchInputsPersistence persistence)
+        : this(persistence, new ProcessSourcePortLauncher())
+    {
+    }
+
+    public MainWindowViewModel(ILaunchInputsPersistence persistence, ISourcePortLauncher launcher)
     {
         _persistence = persistence;
+        _launcher = launcher;
 
         var loadResult = _persistence.Load();
         _store = new LaunchInputsStore(loadResult.State);
@@ -58,10 +67,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _sourcePortPath = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSourcePort));
+            OnPropertyChanged(nameof(CanLaunch));
         }
     }
 
     public bool HasSourcePort => !string.IsNullOrWhiteSpace(SourcePortPath);
+
+    public bool CanLaunch => HasSourcePort && !string.IsNullOrWhiteSpace(SelectedIwadPath);
 
     public ObservableCollection<string> Iwads { get; } = [];
 
@@ -83,6 +95,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             _selectedIwadPath = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CanLaunch));
             OnPropertyChanged(nameof(CommandPreviewArguments));
         }
     }
@@ -194,6 +207,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         PersistState();
+    }
+
+    public void LaunchSourcePort()
+    {
+        if (!CanLaunch || string.IsNullOrWhiteSpace(SourcePortPath) || string.IsNullOrWhiteSpace(SelectedIwadPath))
+        {
+            return;
+        }
+
+        try
+        {
+            _launcher.Launch(SourcePortPath, BuildLaunchArguments());
+        }
+        catch (Exception ex)
+        {
+            StartupWarningMessage = $"Launch failed: {ex.Message}";
+        }
     }
 
     private bool RefreshFromStore()
@@ -346,6 +376,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         return string.Join(" ", arguments);
+    }
+
+    private List<string> BuildLaunchArguments()
+    {
+        var arguments = new List<string>
+        {
+            "-iwad",
+            SelectedIwadPath!
+        };
+
+        if (SelectedModPaths.Count > 0)
+        {
+            arguments.Add("-file");
+            foreach (var selectedModPath in SelectedModPaths)
+            {
+                arguments.Add(selectedModPath);
+            }
+        }
+
+        return arguments;
     }
 
     private static string FormatPreviewFileToken(string path)

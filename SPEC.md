@@ -3,10 +3,12 @@
 ## Product Baseline
 ModLoader is a lightweight Windows-first desktop interface for managing Doom source-port launch inputs.
 
-For each launch profile (future feature), users will provide:
+For each launch profile (future feature), users provide:
 - A source-port executable.
 - One IWAD input from an ordered IWAD list.
 - Zero or more mod inputs from an ordered mod list.
+
+Feature 005 adds launch execution for the current single-profile workflow using the selected IWAD and selected ordered Mods.
 
 This repository follows feature-scoped delivery. Behavior is only guaranteed when specified in feature specs under `Features/`.
 
@@ -21,10 +23,14 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
 - Feature 004: Fixed command preview footer and selection-synchronized mod ordering.
   - Adds generated launch-argument preview (`-iwad`, `-file`) using filenames-only with wrapped footer display, and deterministic mod list reordering by selection sequence.
   - Authoritative spec: `Features/004-fixed-command-preview-and-selection-order.md`.
+- Feature 005: Fixed header and launch execution.
+  - Adds a fixed top header with title/label and right-aligned launch action.
+  - Executes source port with generated full-path `-iwad` / `-file` arguments from current selection state.
+  - Authoritative spec: `Features/005-fixed-header-and-launch-execution.md`.
 
 ## Scope Boundary For Feature 001
 Feature 001 provides in-memory state management and UI interactions only. It does not include:
 - Persistence to disk (provided later by Feature 003).
-- Launch execution.
+- Launch execution (provided later by Feature 005).
 - Profile management.
 - Recursive directory traversal.
