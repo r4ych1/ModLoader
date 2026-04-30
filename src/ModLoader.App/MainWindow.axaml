@@ -3,7 +3,7 @@
         x:Class="ModLoader.App.MainWindow"
         Width="980"
         Height="760"
-        Title="ModLoader - Feature 001">
+        Title="ModLoader - Feature 004">
   <Window.Styles>
     <Style Selector="Border.DropZone">
       <Setter Property="BorderThickness" Value="2" />
@@ -25,89 +25,115 @@
     </Style>
   </Window.Styles>
 
-  <ScrollViewer VerticalScrollBarVisibility="Auto">
-    <StackPanel Margin="20" Spacing="12">
-      <TextBlock FontSize="22" FontWeight="Bold" Text="Feature 001: Drop Inputs" />
-      <TextBlock Foreground="#4b5563" Text="Drop source-port executable, IWAD files, and Mod files into their zones." />
-      <Border IsVisible="{Binding HasStartupWarning}"
-              BorderBrush="#f59e0b"
-              BorderThickness="1"
-              CornerRadius="6"
-              Background="#1af59e0b"
-              Padding="10">
-        <TextBlock Foreground="#92400e"
+  <DockPanel>
+    <Border DockPanel.Dock="Bottom"
+            BorderThickness="1,1,1,0"
+            BorderBrush="#374151"
+            Background="#111827"
+            Padding="12">
+      <StackPanel Spacing="6">
+        <TextBlock Foreground="#d1d5db"
                    FontWeight="SemiBold"
-                   Text="{Binding StartupWarningMessage}" />
-      </Border>
+                   Text="Command Preview" />
+        <TextBox Text="{Binding CommandPreviewArguments}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 Background="#0f172a"
+                 Foreground="#e5e7eb"
+                 BorderBrush="#4b5563"
+                 BorderThickness="1"
+                 FontFamily="Consolas"
+                 MinHeight="56"
+                 Padding="8"
+                 Watermark="-iwad ... -file ..." />
+      </StackPanel>
+    </Border>
 
-      <TextBlock FontWeight="SemiBold" Text="Source Port (.exe only)" />
-      <Border Classes="DropZone"
-              DragDrop.AllowDrop="True"
-              DragDrop.DragOver="OnDropZoneDragOver"
-              DragDrop.Drop="OnSourcePortDrop">
-        <StackPanel>
-          <TextBlock Text="Drop one or more files. Last valid .exe becomes active." />
-          <TextBlock Margin="0,8,0,0"
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="20" Spacing="12">
+        <TextBlock FontSize="22" FontWeight="Bold" Text="Feature 004: Drop Inputs + Command Preview" />
+        <TextBlock Foreground="#4b5563" Text="Drop source-port executable, IWAD files, and Mod files into their zones." />
+        <Border IsVisible="{Binding HasStartupWarning}"
+                BorderBrush="#f59e0b"
+                BorderThickness="1"
+                CornerRadius="6"
+                Background="#1af59e0b"
+                Padding="10">
+          <TextBlock Foreground="#92400e"
                      FontWeight="SemiBold"
-                     Text="{Binding SourcePortPath, FallbackValue=No source port selected}" />
-          <Button Margin="0,10,0,0"
-                  Content="Clear Source Port"
-                  IsEnabled="{Binding HasSourcePort}"
-                  Click="OnClearSourcePortClicked" />
-        </StackPanel>
-      </Border>
+                     Text="{Binding StartupWarningMessage}" />
+        </Border>
 
-      <TextBlock FontWeight="SemiBold" Text="IWAD Inputs" />
-      <Border Classes="DropZone"
-              DragDrop.AllowDrop="True"
-              DragDrop.DragOver="OnDropZoneDragOver"
-              DragDrop.Drop="OnIwadDrop">
-        <StackPanel>
-          <TextBlock Text="Allowed: .wad, .pk3, .iwad, .ipk3, .ipk7, .pk7. Directories scan top-level files only." />
-          <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding IwadRows}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <Border Classes="InputRow"
-                        Classes.selected="{Binding IsSelected}"
-                        Margin="0,4,0,0"
-                        Tag="{Binding Path}"
-                        PointerPressed="OnIwadRowPointerPressed">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Width="720" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
-                    <Button Content="Remove" Tag="{Binding Path}" Click="OnRemoveIwadClicked" />
-                  </StackPanel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </StackPanel>
-      </Border>
+        <TextBlock FontWeight="SemiBold" Text="Source Port (.exe only)" />
+        <Border Classes="DropZone"
+                DragDrop.AllowDrop="True"
+                DragDrop.DragOver="OnDropZoneDragOver"
+                DragDrop.Drop="OnSourcePortDrop">
+          <StackPanel>
+            <TextBlock Text="Drop one or more files. Last valid .exe becomes active." />
+            <TextBlock Margin="0,8,0,0"
+                       FontWeight="SemiBold"
+                       Text="{Binding SourcePortPath, FallbackValue=No source port selected}" />
+            <Button Margin="0,10,0,0"
+                    Content="Clear Source Port"
+                    IsEnabled="{Binding HasSourcePort}"
+                    Click="OnClearSourcePortClicked" />
+          </StackPanel>
+        </Border>
 
-      <TextBlock FontWeight="SemiBold" Text="Mod Inputs" />
-      <Border Classes="DropZone"
-              DragDrop.AllowDrop="True"
-              DragDrop.DragOver="OnDropZoneDragOver"
-              DragDrop.Drop="OnModDrop">
-        <StackPanel>
-          <TextBlock Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz. Directories scan top-level files only." />
-          <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding ModRows}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <Border Classes="InputRow"
-                        Classes.selected="{Binding IsSelected}"
-                        Margin="0,4,0,0"
-                        Tag="{Binding Path}"
-                        PointerPressed="OnModRowPointerPressed">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Width="720" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
-                    <Button Content="Remove" Tag="{Binding Path}" Click="OnRemoveModClicked" />
-                  </StackPanel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </StackPanel>
-      </Border>
-    </StackPanel>
-  </ScrollViewer>
+        <TextBlock FontWeight="SemiBold" Text="IWAD Inputs" />
+        <Border Classes="DropZone"
+                DragDrop.AllowDrop="True"
+                DragDrop.DragOver="OnDropZoneDragOver"
+                DragDrop.Drop="OnIwadDrop">
+          <StackPanel>
+            <TextBlock Text="Allowed: .wad, .pk3, .iwad, .ipk3, .ipk7, .pk7. Directories scan top-level files only." />
+            <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding IwadRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Classes="InputRow"
+                          Classes.selected="{Binding IsSelected}"
+                          Margin="0,4,0,0"
+                          Tag="{Binding Path}"
+                          PointerPressed="OnIwadRowPointerPressed">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Width="720" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                      <Button Content="Remove" Tag="{Binding Path}" Click="OnRemoveIwadClicked" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <TextBlock FontWeight="SemiBold" Text="Mod Inputs" />
+        <Border Classes="DropZone"
+                DragDrop.AllowDrop="True"
+                DragDrop.DragOver="OnDropZoneDragOver"
+                DragDrop.Drop="OnModDrop">
+          <StackPanel>
+            <TextBlock Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz. Directories scan top-level files only." />
+            <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding ModRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Classes="InputRow"
+                          Classes.selected="{Binding IsSelected}"
+                          Margin="0,4,0,0"
+                          Tag="{Binding Path}"
+                          PointerPressed="OnModRowPointerPressed">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Width="720" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                      <Button Content="Remove" Tag="{Binding Path}" Click="OnRemoveModClicked" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
 </Window>

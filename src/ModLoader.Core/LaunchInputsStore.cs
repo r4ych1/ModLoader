@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace ModLoader.Core;
 
@@ -168,6 +169,51 @@ public sealed class LaunchInputsStore
             Iwads = [.. _iwads],
             Mods = [.. _mods]
         };
+    }
+
+    public bool ReorderModsBySelectionSequence(IEnumerable<string> selectedModPaths)
+    {
+        var prioritizedSelections = new List<string>();
+        var seenSelections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var selectedModPath in selectedModPaths)
+        {
+            if (string.IsNullOrWhiteSpace(selectedModPath))
+            {
+                continue;
+            }
+
+            var normalizedPath = PathNormalizer.NormalizeAbsolutePath(selectedModPath);
+            if (!_modPathSet.Contains(normalizedPath))
+            {
+                continue;
+            }
+
+            if (seenSelections.Add(normalizedPath))
+            {
+                prioritizedSelections.Add(normalizedPath);
+            }
+        }
+
+        var reorderedMods = new List<string>(_mods.Count);
+        reorderedMods.AddRange(prioritizedSelections);
+
+        foreach (var modPath in _mods)
+        {
+            if (!seenSelections.Contains(modPath))
+            {
+                reorderedMods.Add(modPath);
+            }
+        }
+
+        if (_mods.SequenceEqual(reorderedMods, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        _mods.Clear();
+        _mods.AddRange(reorderedMods);
+        return true;
     }
 
     private static bool HasAllowedExtension(string path, HashSet<string> allowedExtensions)
