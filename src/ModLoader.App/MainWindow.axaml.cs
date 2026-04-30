@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Markup.Xaml;
 using Avalonia.VisualTree;
 using ModLoader.Core;
 
@@ -20,6 +21,11 @@ public partial class MainWindow : Window
 
         InitializeComponent();
         DataContext = _viewModel;
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 
     private void OnDropZoneDragOver(object? sender, DragEventArgs e)
@@ -93,6 +99,11 @@ public partial class MainWindow : Window
             _viewModel.ToggleModSelection(path);
             e.Handled = true;
         }
+    }
+
+    private void OnLaunchClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.LaunchSourcePort();
     }
 
     private static bool HasFilePayload(DragEventArgs e)
