@@ -27,6 +27,10 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
   - Adds a fixed top header with title/label and right-aligned launch action.
   - Executes source port with generated full-path `-iwad` / `-file` arguments from current selection state.
   - Authoritative spec: `Features/005-fixed-header-and-launch-execution.md`.
+- Feature 006: Row action alignment, section clear-all, and row interaction states.
+  - Aligns Source Port/IWAD/Mod section clear actions and row-level `Remove` actions using a shared right-hand action-column layout pattern.
+  - Adds IWAD/Mod clear-all behavior and distinct row `hover`, `selected`, and `selected+hover` visuals for light/dark themes.
+  - Authoritative spec: `Features/006-row-actions-clear-all-and-row-states.md`.
 
 ## Scope Boundary For Feature 001
 Feature 001 provides in-memory state management and UI interactions only. It does not include:

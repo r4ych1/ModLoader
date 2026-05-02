@@ -94,6 +94,46 @@ public sealed class LaunchInputsStoreTests
         Assert.DoesNotContain(Path.GetFullPath(Path.Combine(nestedDir.FullName, "nested.pk3")), store.Mods, StringComparer.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void ClearIwads_EmptiesOnlyIwadList()
+    {
+        using var temp = new TempDirectory();
+        var iwad1 = temp.CreateFile("doom1.wad");
+        var iwad2 = temp.CreateFile("doom2.iwad");
+        var mod = temp.CreateFile("mod-a.pk3");
+
+        var store = new LaunchInputsStore(new LaunchInputsConfig
+        {
+            Iwads = [iwad1, iwad2],
+            Mods = [mod]
+        });
+
+        store.ClearIwads();
+
+        Assert.Empty(store.Iwads);
+        Assert.Equal([Path.GetFullPath(mod)], store.Mods.ToArray());
+    }
+
+    [Fact]
+    public void ClearMods_EmptiesOnlyModList()
+    {
+        using var temp = new TempDirectory();
+        var iwad = temp.CreateFile("doom2.wad");
+        var mod1 = temp.CreateFile("mod-a.pk3");
+        var mod2 = temp.CreateFile("mod-b.pkz");
+
+        var store = new LaunchInputsStore(new LaunchInputsConfig
+        {
+            Iwads = [iwad],
+            Mods = [mod1, mod2]
+        });
+
+        store.ClearMods();
+
+        Assert.Equal([Path.GetFullPath(iwad)], store.Iwads.ToArray());
+        Assert.Empty(store.Mods);
+    }
+
     private static bool IsValidMod(string path)
     {
         var extension = Path.GetExtension(path);

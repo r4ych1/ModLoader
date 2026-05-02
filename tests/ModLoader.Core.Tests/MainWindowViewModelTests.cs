@@ -210,6 +210,85 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ClearAllIwads_RemovesAllIwads_ClearsSelectedIwad_AndPersistsImmediately()
+    {
+        using var temp = new TempDirectory();
+        var iwad1 = temp.CreateFile("doom1.wad");
+        var iwad2 = temp.CreateFile("doom2.wad");
+        var mod = temp.CreateFile("mod-a.pk3");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessIwadDrop([iwad1, iwad2]);
+        viewModel.ProcessModDrop([mod]);
+        viewModel.ToggleIwadSelection(iwad2);
+        var saveCountBeforeClear = persistence.SaveCallCount;
+
+        viewModel.ClearAllIwads();
+
+        Assert.Empty(viewModel.Iwads);
+        Assert.Null(viewModel.SelectedIwadPath);
+        Assert.Single(viewModel.Mods);
+        Assert.False(viewModel.HasIwads);
+        Assert.True(viewModel.HasMods);
+        Assert.Equal(saveCountBeforeClear + 1, persistence.SaveCallCount);
+        Assert.Empty(persistence.SavedStates.Last().Iwads);
+        Assert.Null(persistence.SavedStates.Last().SelectedIwadPath);
+    }
+
+    [Fact]
+    public void ClearAllMods_RemovesAllMods_ClearsSelectedMods_AndPersistsImmediately()
+    {
+        using var temp = new TempDirectory();
+        var iwad = temp.CreateFile("doom2.wad");
+        var mod1 = temp.CreateFile("mod-a.pk3");
+        var mod2 = temp.CreateFile("mod-b.pk3");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ProcessModDrop([mod1, mod2]);
+        viewModel.ToggleModSelection(mod2);
+        viewModel.ToggleModSelection(mod1);
+        var saveCountBeforeClear = persistence.SaveCallCount;
+
+        viewModel.ClearAllMods();
+
+        Assert.Empty(viewModel.Mods);
+        Assert.Empty(viewModel.SelectedModPaths);
+        Assert.Single(viewModel.Iwads);
+        Assert.True(viewModel.HasIwads);
+        Assert.False(viewModel.HasMods);
+        Assert.Equal(saveCountBeforeClear + 1, persistence.SaveCallCount);
+        Assert.Empty(persistence.SavedStates.Last().Mods);
+        Assert.Empty(persistence.SavedStates.Last().SelectedModPaths);
+    }
+
+    [Fact]
+    public void HasIwadsAndHasMods_ReflectCollectionStateTransitions()
+    {
+        using var temp = new TempDirectory();
+        var iwad = temp.CreateFile("doom2.wad");
+        var mod = temp.CreateFile("mod-a.pk3");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+
+        Assert.False(viewModel.HasIwads);
+        Assert.False(viewModel.HasMods);
+
+        viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ProcessModDrop([mod]);
+        Assert.True(viewModel.HasIwads);
+        Assert.True(viewModel.HasMods);
+
+        viewModel.ClearAllIwads();
+        viewModel.ClearAllMods();
+        Assert.False(viewModel.HasIwads);
+        Assert.False(viewModel.HasMods);
+    }
+
+    [Fact]
     public void RemoveEntries_RemovesOnlyTargetedEntry()
     {
         using var temp = new TempDirectory();
