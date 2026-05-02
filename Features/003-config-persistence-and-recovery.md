@@ -5,9 +5,10 @@ Persist launch-input state to disk and recover safely from missing files or inva
 
 ## In Scope
 - Persist:
-  - Source port path
+  - Ordered source-port path list
   - Ordered IWAD path list
   - Ordered Mod path list
+  - Selected source-port path (nullable)
   - Selected IWAD path (nullable)
   - Ordered selected Mod path list
 - Config file location:
@@ -18,7 +19,8 @@ Persist launch-input state to disk and recover safely from missing files or inva
   - clear
   - selection toggle
 - Startup sanitation of missing files:
-  - Clear source port when its file no longer exists.
+  - Remove source-port entries whose files no longer exist.
+  - Clear selected source-port when it is not present after sanitation.
   - Remove IWAD/Mod entries whose files no longer exist.
   - Persist cleaned state immediately when sanitation changes state.
 - Fault-tolerant config load:
@@ -36,9 +38,10 @@ Persist launch-input state to disk and recover safely from missing files or inva
 - Canonical config path:
   - `Path.Combine(AppContext.BaseDirectory, "modloader.config.json")`.
 - Empty state config:
-  - Source port: `null`
+  - Source ports: empty
   - IWAD list: empty
   - Mod list: empty
+  - Selected source port path: `null`
   - Selected IWAD path: `null`
   - Selected Mod list: empty
 - Non-blocking warning:
@@ -66,8 +69,11 @@ Persist launch-input state to disk and recover safely from missing files or inva
   - Write new empty config at canonical config path.
 
 ### Missing File Sanitation
-- Source port:
-  - If path is set but file does not exist, clear it.
+- Source ports:
+  - Remove entries whose file paths do not exist.
+  - Preserve relative ordering of remaining entries.
+- Selected source port:
+  - If selected path is not present in sanitized source-port list, clear it.
 - IWAD and Mod lists:
   - Remove entries whose file paths do not exist.
   - Preserve relative ordering of remaining entries.
@@ -76,7 +82,7 @@ Persist launch-input state to disk and recover safely from missing files or inva
 - Selected Mods:
   - Remove selected paths not present in sanitized Mod list.
   - Preserve relative ordering of remaining selected paths.
-- If sanitation changed source/IWAD/Mod values or selection values, persist sanitized state immediately.
+- If sanitation changed source-port/IWAD/Mod values or selection values, persist sanitized state immediately.
 
 ## Acceptance Criteria
 ### Immediate persistence on mutation
@@ -87,8 +93,8 @@ Then `modloader.config.json` is updated immediately to match current in-memory s
 ### Missing file sanitation at startup
 Given `modloader.config.json` contains one or more file paths that no longer exist
 When the app starts
-Then missing source port value is cleared and missing IWAD/Mod entries are removed.
-And selected IWAD/Mod paths that are no longer present are removed from selection state.
+Then missing source-port entries and missing IWAD/Mod entries are removed.
+And selected source-port/IWAD/Mod paths that are no longer present are removed from selection state.
 And sanitized state is persisted immediately to `modloader.config.json`.
 
 ### Fault-tolerant invalid JSON load

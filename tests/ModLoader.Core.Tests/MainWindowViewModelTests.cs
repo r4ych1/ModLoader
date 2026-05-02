@@ -6,7 +6,7 @@ namespace ModLoader.Core.Tests;
 public sealed class MainWindowViewModelTests
 {
     [Fact]
-    public void CanLaunch_RequiresSourcePortAndSelectedIwad()
+    public void CanLaunch_RequiresSelectedSourcePortAndSelectedIwad()
     {
         using var temp = new TempDirectory();
         var source = temp.CreateFile("gzdoom.exe");
@@ -19,23 +19,25 @@ public sealed class MainWindowViewModelTests
         Assert.False(viewModel.CanLaunch);
 
         viewModel.ProcessSourcePortDrop([source]);
+        viewModel.ProcessIwadDrop([iwad]);
         Assert.False(viewModel.CanLaunch);
 
-        viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ToggleSourcePortSelection(source);
         Assert.False(viewModel.CanLaunch);
 
         viewModel.ToggleIwadSelection(iwad);
         Assert.True(viewModel.CanLaunch);
 
-        viewModel.ClearSourcePort();
+        viewModel.ToggleSourcePortSelection(source);
         Assert.False(viewModel.CanLaunch);
     }
 
     [Fact]
-    public void LaunchSourcePort_WhenReady_UsesFullPathArgumentsFromSelectionOrder()
+    public void LaunchSourcePort_WhenReady_UsesSelectedSourcePortAndFullPathArgumentsFromSelectionOrder()
     {
         using var temp = new TempDirectory();
-        var source = temp.CreateFile("gzdoom.exe");
+        var source1 = temp.CreateFile("gzdoom.exe");
+        var source2 = temp.CreateFile("vkdoom.exe");
         var iwad = temp.CreateFile("doom2.wad");
         var mod1 = temp.CreateFile("mod-a.pk3");
         var mod2 = temp.CreateFile("mod-b.pk3");
@@ -44,10 +46,11 @@ public sealed class MainWindowViewModelTests
         var launcher = new RecordingLauncher();
         var viewModel = new MainWindowViewModel(persistence, launcher);
 
-        viewModel.ProcessSourcePortDrop([source]);
+        viewModel.ProcessSourcePortDrop([source1, source2]);
         viewModel.ProcessIwadDrop([iwad]);
         viewModel.ProcessModDrop([mod1, mod2]);
 
+        viewModel.ToggleSourcePortSelection(source2);
         viewModel.ToggleIwadSelection(iwad);
         viewModel.ToggleModSelection(mod2);
         viewModel.ToggleModSelection(mod1);
@@ -55,7 +58,7 @@ public sealed class MainWindowViewModelTests
         viewModel.LaunchSourcePort();
 
         Assert.Equal(1, launcher.LaunchCallCount);
-        Assert.Equal(Path.GetFullPath(source), launcher.LastExecutablePath);
+        Assert.Equal(Path.GetFullPath(source2), launcher.LastExecutablePath);
         Assert.Equal(
             [
                 "-iwad",
@@ -68,6 +71,7 @@ public sealed class MainWindowViewModelTests
 
         Assert.Equal([Path.GetFullPath(mod2), Path.GetFullPath(mod1)], viewModel.SelectedModPaths);
         Assert.Equal(Path.GetFullPath(iwad), viewModel.SelectedIwadPath);
+        Assert.Equal(Path.GetFullPath(source2), viewModel.SelectedSourcePortPath);
     }
 
     [Fact]
@@ -83,6 +87,7 @@ public sealed class MainWindowViewModelTests
 
         viewModel.ProcessSourcePortDrop([source]);
         viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ToggleSourcePortSelection(source);
         viewModel.ToggleIwadSelection(iwad);
         viewModel.LaunchSourcePort();
 
@@ -120,6 +125,7 @@ public sealed class MainWindowViewModelTests
 
         viewModel.ProcessSourcePortDrop([source]);
         viewModel.ProcessIwadDrop([iwad]);
+        viewModel.ToggleSourcePortSelection(source);
         viewModel.ToggleIwadSelection(iwad);
 
         viewModel.LaunchSourcePort();
@@ -136,6 +142,34 @@ public sealed class MainWindowViewModelTests
         var viewModel = new MainWindowViewModel(persistence);
 
         Assert.Equal(string.Empty, viewModel.CommandPreviewArguments);
+    }
+
+    [Fact]
+    public void CommandPreviewArguments_SourcePortOnly_EmitsExecutableTokenOnly()
+    {
+        using var temp = new TempDirectory();
+        var sourcePort = temp.CreateFile("gzdoom.exe");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessSourcePortDrop([sourcePort]);
+        viewModel.ToggleSourcePortSelection(sourcePort);
+
+        Assert.Equal("gzdoom.exe", viewModel.CommandPreviewArguments);
+    }
+
+    [Fact]
+    public void CommandPreviewArguments_SourcePortOnly_QuotesSourcePortFilenameWhenItContainsSpaces()
+    {
+        using var temp = new TempDirectory();
+        var sourcePortWithSpace = temp.CreateFile("my gzdoom.exe");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessSourcePortDrop([sourcePortWithSpace]);
+        viewModel.ToggleSourcePortSelection(sourcePortWithSpace);
+
+        Assert.Equal("\"my gzdoom.exe\"", viewModel.CommandPreviewArguments);
     }
 
     [Fact]
@@ -167,29 +201,32 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public void CommandPreviewArguments_IwadAndMods_UsesDeterministicSegmentOrder()
+    public void CommandPreviewArguments_SourcePortIwadAndMods_UsesDeterministicSegmentOrder()
     {
         using var temp = new TempDirectory();
+        var sourcePort = temp.CreateFile("gzdoom.exe");
         var iwad = temp.CreateFile("doom2.wad");
         var mod1 = temp.CreateFile("mod-a.pk3");
         var mod2 = temp.CreateFile("mod-b.pk3");
 
         var persistence = new RecordingPersistence();
         var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessSourcePortDrop([sourcePort]);
         viewModel.ProcessIwadDrop([iwad]);
         viewModel.ProcessModDrop([mod1, mod2]);
 
+        viewModel.ToggleSourcePortSelection(sourcePort);
         viewModel.ToggleIwadSelection(iwad);
         viewModel.ToggleModSelection(mod2);
         viewModel.ToggleModSelection(mod1);
 
         Assert.Equal(
-            "-iwad doom2.wad -file mod-b.pk3 mod-a.pk3",
+            "gzdoom.exe -iwad doom2.wad -file mod-b.pk3 mod-a.pk3",
             viewModel.CommandPreviewArguments);
     }
 
     [Fact]
-    public void ClearSourcePort_ClearsOnlySourcePort()
+    public void ClearAllSourcePorts_ClearsSourcePortsAndSelectionOnly()
     {
         using var temp = new TempDirectory();
         var source = temp.CreateFile("gzdoom.exe");
@@ -201,10 +238,12 @@ public sealed class MainWindowViewModelTests
         viewModel.ProcessSourcePortDrop([source]);
         viewModel.ProcessIwadDrop([iwad]);
         viewModel.ProcessModDrop([mod]);
+        viewModel.ToggleSourcePortSelection(source);
 
-        viewModel.ClearSourcePort();
+        viewModel.ClearAllSourcePorts();
 
-        Assert.Null(viewModel.SourcePortPath);
+        Assert.Empty(viewModel.SourcePorts);
+        Assert.Null(viewModel.SelectedSourcePortPath);
         Assert.Single(viewModel.Iwads);
         Assert.Single(viewModel.Mods);
     }
@@ -265,25 +304,31 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public void HasIwadsAndHasMods_ReflectCollectionStateTransitions()
+    public void HasCollections_ReflectCollectionStateTransitions()
     {
         using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
         var iwad = temp.CreateFile("doom2.wad");
         var mod = temp.CreateFile("mod-a.pk3");
 
         var persistence = new RecordingPersistence();
         var viewModel = new MainWindowViewModel(persistence);
 
+        Assert.False(viewModel.HasSourcePorts);
         Assert.False(viewModel.HasIwads);
         Assert.False(viewModel.HasMods);
 
+        viewModel.ProcessSourcePortDrop([source]);
         viewModel.ProcessIwadDrop([iwad]);
         viewModel.ProcessModDrop([mod]);
+        Assert.True(viewModel.HasSourcePorts);
         Assert.True(viewModel.HasIwads);
         Assert.True(viewModel.HasMods);
 
+        viewModel.ClearAllSourcePorts();
         viewModel.ClearAllIwads();
         viewModel.ClearAllMods();
+        Assert.False(viewModel.HasSourcePorts);
         Assert.False(viewModel.HasIwads);
         Assert.False(viewModel.HasMods);
     }
@@ -292,6 +337,8 @@ public sealed class MainWindowViewModelTests
     public void RemoveEntries_RemovesOnlyTargetedEntry()
     {
         using var temp = new TempDirectory();
+        var source1 = temp.CreateFile("gzdoom.exe");
+        var source2 = temp.CreateFile("vkdoom.exe");
         var iwad1 = temp.CreateFile("doom1.wad");
         var iwad2 = temp.CreateFile("doom2.iwad");
         var mod1 = temp.CreateFile("mod-a.pk3");
@@ -299,14 +346,77 @@ public sealed class MainWindowViewModelTests
 
         var persistence = new RecordingPersistence();
         var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessSourcePortDrop([source1, source2]);
         viewModel.ProcessIwadDrop([iwad1, iwad2]);
         viewModel.ProcessModDrop([mod1, mod2]);
 
+        viewModel.RemoveSourcePort(Path.GetFullPath(source1));
         viewModel.RemoveIwad(Path.GetFullPath(iwad1));
         viewModel.RemoveMod(Path.GetFullPath(mod2));
 
+        Assert.Equal([Path.GetFullPath(source2)], viewModel.SourcePorts.ToArray());
         Assert.Equal([Path.GetFullPath(iwad2)], viewModel.Iwads.ToArray());
         Assert.Equal([Path.GetFullPath(mod1)], viewModel.Mods.ToArray());
+    }
+
+    [Fact]
+    public void ToggleSourcePortSelection_SingleSelectWithReselectToDeselect()
+    {
+        using var temp = new TempDirectory();
+        var source1 = temp.CreateFile("gzdoom.exe");
+        var source2 = temp.CreateFile("vkdoom.exe");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessSourcePortDrop([source1, source2]);
+
+        viewModel.ToggleSourcePortSelection(source1);
+        Assert.Equal(Path.GetFullPath(source1), viewModel.SelectedSourcePortPath);
+        Assert.True(viewModel.SourcePortRows.First(row => row.Path == Path.GetFullPath(source1)).IsSelected);
+        Assert.Equal(Path.GetFullPath(source1), persistence.SavedStates.Last().SelectedSourcePortPath);
+
+        viewModel.ToggleSourcePortSelection(source2);
+        Assert.Equal(Path.GetFullPath(source2), viewModel.SelectedSourcePortPath);
+        Assert.True(viewModel.SourcePortRows.First(row => row.Path == Path.GetFullPath(source2)).IsSelected);
+        Assert.False(viewModel.SourcePortRows.First(row => row.Path == Path.GetFullPath(source1)).IsSelected);
+        Assert.Equal(Path.GetFullPath(source2), persistence.SavedStates.Last().SelectedSourcePortPath);
+
+        viewModel.ToggleSourcePortSelection(source2);
+        Assert.Null(viewModel.SelectedSourcePortPath);
+        Assert.DoesNotContain(viewModel.SourcePortRows, row => row.IsSelected);
+        Assert.Null(persistence.SavedStates.Last().SelectedSourcePortPath);
+    }
+
+    [Fact]
+    public void ProcessSourcePortDrop_SameFileNameDifferentDirectories_PreservesDistinctRowsAndSelection()
+    {
+        using var temp = new TempDirectory();
+        var dirA = Directory.CreateDirectory(Path.Combine(temp.Path, "A"));
+        var dirB = Directory.CreateDirectory(Path.Combine(temp.Path, "B"));
+        var sourceA = Path.Combine(dirA.FullName, "gzdoom.exe");
+        var sourceB = Path.Combine(dirB.FullName, "gzdoom.exe");
+        File.WriteAllText(sourceA, string.Empty);
+        File.WriteAllText(sourceB, string.Empty);
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.ProcessSourcePortDrop([sourceA, sourceB]);
+
+        Assert.Equal(
+            [Path.GetFullPath(sourceA), Path.GetFullPath(sourceB)],
+            viewModel.SourcePorts.ToArray());
+        Assert.Equal(2, viewModel.SourcePortRows.Count);
+
+        viewModel.ToggleSourcePortSelection(sourceA);
+        Assert.Equal(Path.GetFullPath(sourceA), viewModel.SelectedSourcePortPath);
+        Assert.True(viewModel.SourcePortRows.First(row => row.Path == Path.GetFullPath(sourceA)).IsSelected);
+        Assert.False(viewModel.SourcePortRows.First(row => row.Path == Path.GetFullPath(sourceB)).IsSelected);
+
+        viewModel.ToggleSourcePortSelection(sourceB);
+        Assert.Equal(Path.GetFullPath(sourceB), viewModel.SelectedSourcePortPath);
+        Assert.True(viewModel.SourcePortRows.First(row => row.Path == Path.GetFullPath(sourceB)).IsSelected);
+        Assert.False(viewModel.SourcePortRows.First(row => row.Path == Path.GetFullPath(sourceA)).IsSelected);
     }
 
     [Fact]
@@ -423,6 +533,8 @@ public sealed class MainWindowViewModelTests
     public void RemoveSelectedRows_UpdatesSelectionsWithoutChangingUnrelatedSelections()
     {
         using var temp = new TempDirectory();
+        var source1 = temp.CreateFile("gzdoom.exe");
+        var source2 = temp.CreateFile("vkdoom.exe");
         var iwad1 = temp.CreateFile("doom1.wad");
         var iwad2 = temp.CreateFile("doom2.wad");
         var mod1 = temp.CreateFile("mod-a.pk3");
@@ -431,16 +543,20 @@ public sealed class MainWindowViewModelTests
 
         var persistence = new RecordingPersistence();
         var viewModel = new MainWindowViewModel(persistence);
+        viewModel.ProcessSourcePortDrop([source1, source2]);
         viewModel.ProcessIwadDrop([iwad1, iwad2]);
         viewModel.ProcessModDrop([mod1, mod2, mod3]);
 
+        viewModel.ToggleSourcePortSelection(source1);
         viewModel.ToggleIwadSelection(iwad1);
         viewModel.ToggleModSelection(mod1);
         viewModel.ToggleModSelection(mod2);
 
+        viewModel.RemoveSourcePort(source1);
         viewModel.RemoveIwad(iwad1);
         viewModel.RemoveMod(mod1);
 
+        Assert.Null(viewModel.SelectedSourcePortPath);
         Assert.Null(viewModel.SelectedIwadPath);
         Assert.DoesNotContain(Path.GetFullPath(mod1), viewModel.SelectedModPaths, StringComparer.OrdinalIgnoreCase);
         Assert.Contains(Path.GetFullPath(mod2), viewModel.SelectedModPaths, StringComparer.OrdinalIgnoreCase);
@@ -453,11 +569,12 @@ public sealed class MainWindowViewModelTests
     public void Constructor_LoadsState_ShowsStartupWarning_AndSanitizesMissingPaths()
     {
         using var temp = new TempDirectory();
+        var existingSource = temp.CreateFile("gzdoom.exe");
+        var missingSource = Path.Combine(temp.Path, "missing.exe");
         var existingIwad = temp.CreateFile("doom1.wad");
         var missingIwad = Path.Combine(temp.Path, "missing.wad");
         var existingMod = temp.CreateFile("mod1.pk3");
         var missingMod = Path.Combine(temp.Path, "missing.pk3");
-        var missingSource = Path.Combine(temp.Path, "missing.exe");
 
         var persistence = new RecordingPersistence
         {
@@ -465,9 +582,10 @@ public sealed class MainWindowViewModelTests
             {
                 State = new LaunchInputsConfig
                 {
-                    SourcePortPath = missingSource,
+                    SourcePorts = [existingSource, missingSource],
                     Iwads = [existingIwad, missingIwad],
                     Mods = [existingMod, missingMod],
+                    SelectedSourcePortPath = missingSource,
                     SelectedIwadPath = missingIwad,
                     SelectedModPaths = [missingMod, existingMod]
                 },
@@ -480,12 +598,14 @@ public sealed class MainWindowViewModelTests
 
         Assert.True(viewModel.HasStartupWarning);
         Assert.Equal("Config was invalid and was reset.", viewModel.StartupWarningMessage);
-        Assert.Null(viewModel.SourcePortPath);
+        Assert.Equal([Path.GetFullPath(existingSource)], viewModel.SourcePorts.ToArray());
         Assert.Equal([Path.GetFullPath(existingIwad)], viewModel.Iwads.ToArray());
         Assert.Equal([Path.GetFullPath(existingMod)], viewModel.Mods.ToArray());
+        Assert.Null(viewModel.SelectedSourcePortPath);
         Assert.Null(viewModel.SelectedIwadPath);
         Assert.Equal([Path.GetFullPath(existingMod)], viewModel.SelectedModPaths);
         Assert.Equal(1, persistence.SaveCallCount);
+        Assert.Null(persistence.SavedStates.Last().SelectedSourcePortPath);
         Assert.Null(persistence.SavedStates.Last().SelectedIwadPath);
         Assert.Equal([Path.GetFullPath(existingMod)], persistence.SavedStates.Last().SelectedModPaths);
     }
@@ -494,6 +614,8 @@ public sealed class MainWindowViewModelTests
     public void Constructor_LoadsSelectionState_AndReordersModsToSelectionSequence()
     {
         using var temp = new TempDirectory();
+        var source1 = temp.CreateFile("gzdoom.exe");
+        var source2 = temp.CreateFile("vkdoom.exe");
         var iwad1 = temp.CreateFile("doom1.wad");
         var iwad2 = temp.CreateFile("doom2.wad");
         var mod1 = temp.CreateFile("mod1.pk3");
@@ -505,6 +627,8 @@ public sealed class MainWindowViewModelTests
             {
                 State = new LaunchInputsConfig
                 {
+                    SourcePorts = [source1, source2],
+                    SelectedSourcePortPath = source2,
                     Iwads = [iwad1, iwad2],
                     Mods = [mod1, mod2],
                     SelectedIwadPath = iwad2,
@@ -515,9 +639,11 @@ public sealed class MainWindowViewModelTests
 
         var viewModel = new MainWindowViewModel(persistence);
 
+        Assert.Equal(Path.GetFullPath(source2), viewModel.SelectedSourcePortPath);
         Assert.Equal(Path.GetFullPath(iwad2), viewModel.SelectedIwadPath);
         Assert.Equal([Path.GetFullPath(mod2), Path.GetFullPath(mod1)], viewModel.SelectedModPaths);
         Assert.Equal([Path.GetFullPath(mod2), Path.GetFullPath(mod1)], viewModel.Mods.ToArray());
+        Assert.True(viewModel.SourcePortRows.First(row => row.Path == Path.GetFullPath(source2)).IsSelected);
         Assert.True(viewModel.IwadRows.First(row => row.Path == Path.GetFullPath(iwad2)).IsSelected);
         Assert.True(viewModel.ModRows.First(row => row.Path == Path.GetFullPath(mod2)).IsSelected);
         Assert.True(viewModel.ModRows.First(row => row.Path == Path.GetFullPath(mod1)).IsSelected);
@@ -566,11 +692,12 @@ public sealed class MainWindowViewModelTests
         viewModel.ProcessModDrop([mod]);
         viewModel.RemoveIwad(iwad);
         viewModel.RemoveMod(mod);
-        viewModel.ClearSourcePort();
+        viewModel.ClearAllSourcePorts();
 
         Assert.Equal(6, persistence.SaveCallCount);
         var lastSaved = persistence.SavedStates.Last();
-        Assert.Null(lastSaved.SourcePortPath);
+        Assert.Empty(lastSaved.SourcePorts);
+        Assert.Null(lastSaved.SelectedSourcePortPath);
         Assert.Empty(lastSaved.Iwads);
         Assert.Empty(lastSaved.Mods);
         Assert.Null(lastSaved.SelectedIwadPath);
@@ -599,7 +726,8 @@ internal sealed class RecordingPersistence : ILaunchInputsPersistence
         SaveCallCount++;
         SavedStates.Add(new LaunchInputsConfig
         {
-            SourcePortPath = config.SourcePortPath,
+            SourcePorts = [.. config.SourcePorts],
+            SelectedSourcePortPath = config.SelectedSourcePortPath,
             Iwads = [.. config.Iwads],
             Mods = [.. config.Mods],
             SelectedIwadPath = config.SelectedIwadPath,

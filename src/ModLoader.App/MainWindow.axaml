@@ -3,7 +3,7 @@
         x:Class="ModLoader.App.MainWindow"
         Width="980"
         Height="760"
-        Title="ModLoader - Feature 005">
+        Title="ModLoader - Feature 007">
   <Window.Resources>
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
@@ -67,9 +67,9 @@
           <TextBlock FontSize="20"
                      FontWeight="Bold"
                      Foreground="#e5e7eb"
-                     Text="Feature 005: Drop Inputs + Launch" />
+                     Text="Feature 007: Source Ports + Drop Inputs + Launch" />
           <TextBlock Foreground="#9ca3af"
-                     Text="Drop source-port executable, IWAD files, and Mod files. Select IWAD and ordered Mods to launch." />
+                     Text="Drop source-port executable, IWAD files, and Mod files. Select Source Port, IWAD, and ordered Mods to launch." />
         </StackPanel>
         <Button Grid.Column="1"
                 Content="Launch"
@@ -120,32 +120,57 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="20" Spacing="12">
-        <TextBlock FontWeight="SemiBold" Text="Source Port (.exe only)" />
+        <TextBlock FontWeight="SemiBold" Text="Source Port Inputs" />
         <Border Classes="DropZone"
                 DragDrop.AllowDrop="True"
                 DragDrop.DragOver="OnDropZoneDragOver"
                 DragDrop.Drop="OnSourcePortDrop">
-          <Grid RowDefinitions="Auto,Auto">
+          <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
             <Grid Grid.Row="0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" SharedSizeGroup="SourcePortActionColumn" />
               </Grid.ColumnDefinitions>
               <TextBlock Grid.Column="0"
-                         Text="Drop one or more files. Last valid .exe becomes active."
+                         Text="Allowed: .exe. Drop one or more files. Directories are ignored."
                          VerticalAlignment="Center" />
               <Button Grid.Column="1"
-                      Content="Clear Source Port"
-                      IsEnabled="{Binding HasSourcePort}"
+                      Content="Clear All"
+                      IsEnabled="{Binding HasSourcePorts}"
                       HorizontalAlignment="Right"
                       VerticalAlignment="Center"
                       Margin="8,0,0,0"
-                      Click="OnClearSourcePortClicked" />
+                      Click="OnClearAllSourcePortsClicked" />
             </Grid>
-            <TextBlock Grid.Row="1"
-                       Margin="0,8,0,0"
-                       FontWeight="SemiBold"
-                       Text="{Binding SourcePortPath, FallbackValue=No source port selected}" />
+            <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding SourcePortRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Classes="InputRow"
+                          Classes.selected="{Binding IsSelected}"
+                          Margin="0,4,0,0"
+                          Tag="{Binding Path}"
+                          PointerPressed="OnSourcePortRowPointerPressed">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="SourcePortActionColumn" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0"
+                                 Text="{Binding Path}"
+                                 TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center" />
+                      <Button Grid.Column="1"
+                              Content="Remove"
+                              Tag="{Binding Path}"
+                              HorizontalAlignment="Right"
+                              VerticalAlignment="Center"
+                              Margin="8,0,0,0"
+                              Click="OnRemoveSourcePortClicked" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </Grid>
         </Border>
 
@@ -215,7 +240,7 @@
                 <ColumnDefinition Width="Auto" SharedSizeGroup="ModActionColumn" />
               </Grid.ColumnDefinitions>
               <TextBlock Grid.Column="0"
-                         Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz. Directories scan top-level files only."
+                         Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz, .zip. Directories scan top-level files only."
                          VerticalAlignment="Center" />
               <Button Grid.Column="1"
                       Content="Clear All"

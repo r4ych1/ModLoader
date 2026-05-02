@@ -5,18 +5,42 @@ namespace ModLoader.Core.Tests;
 public sealed class LaunchInputsStoreTests
 {
     [Fact]
-    public void ProcessSourcePortDrop_AcceptsOnlyExe_AndStoresLastValidExe()
+    public void ProcessSourcePortDrop_AcceptsOnlyExe_AndAppendsUniqueSourcePortsInOrder()
     {
         using var temp = new TempDirectory();
         var txt = temp.CreateFile("readme.txt");
         var exe1 = temp.CreateFile("gzdoom.exe");
         var wad = temp.CreateFile("doom.wad");
         var exe2 = temp.CreateFile("vkdoom.exe");
+        var exe1DifferentCase = exe1.ToUpperInvariant();
 
         var store = new LaunchInputsStore();
-        store.ProcessSourcePortDrop([txt, exe1, wad, exe2]);
+        store.ProcessSourcePortDrop([txt, exe1, wad, exe2, exe1DifferentCase]);
 
-        Assert.Equal(Path.GetFullPath(exe2), store.SourcePortPath);
+        Assert.Equal(
+            [Path.GetFullPath(exe1), Path.GetFullPath(exe2)],
+            store.SourcePorts.ToArray());
+    }
+
+    [Fact]
+    public void ProcessSourcePortDrop_SameFileNameInDifferentDirectories_AddsBothFullPaths()
+    {
+        using var temp = new TempDirectory();
+        var dirA = Directory.CreateDirectory(Path.Combine(temp.Path, "A"));
+        var dirB = Directory.CreateDirectory(Path.Combine(temp.Path, "B"));
+        var exeA = Path.Combine(dirA.FullName, "gzdoom.exe");
+        var exeB = Path.Combine(dirB.FullName, "gzdoom.exe");
+        File.WriteAllText(exeA, string.Empty);
+        File.WriteAllText(exeB, string.Empty);
+        var invalid = Path.Combine(dirB.FullName, "gzdoom.txt");
+        File.WriteAllText(invalid, string.Empty);
+
+        var store = new LaunchInputsStore();
+        store.ProcessSourcePortDrop([exeA, invalid, exeB]);
+
+        Assert.Equal(
+            [Path.GetFullPath(exeA), Path.GetFullPath(exeB)],
+            store.SourcePorts.ToArray());
     }
 
     [Fact]
@@ -54,19 +78,20 @@ public sealed class LaunchInputsStoreTests
     }
 
     [Fact]
-    public void ProcessModDrop_AcceptsAllowlistedExtensions_AndDedupesByNormalizedPath()
+    public void ProcessModDrop_AcceptsAllowlistedExtensionsIncludingZip_AndDedupesByNormalizedPath()
     {
         using var temp = new TempDirectory();
         var mod1 = temp.CreateFile("mod-a.pk3");
         var mod1CaseVariant = mod1.ToUpperInvariant();
         var mod2 = temp.CreateFile("mod-b.pkz");
-        var invalid = temp.CreateFile("mod-c.zip");
+        var mod3 = temp.CreateFile("mod-c.zip");
+        var invalid = temp.CreateFile("mod-d.txt");
 
         var store = new LaunchInputsStore();
-        store.ProcessModDrop([mod1, mod1CaseVariant, invalid, mod2]);
+        store.ProcessModDrop([mod1, mod1CaseVariant, invalid, mod2, mod3]);
 
         Assert.Equal(
-            [Path.GetFullPath(mod1), Path.GetFullPath(mod2)],
+            [Path.GetFullPath(mod1), Path.GetFullPath(mod2), Path.GetFullPath(mod3)],
             store.Mods.ToArray());
     }
 
@@ -76,6 +101,7 @@ public sealed class LaunchInputsStoreTests
         using var temp = new TempDirectory();
         temp.CreateFile("alpha.pk3");
         temp.CreateFile("beta.pwad");
+        temp.CreateFile("gamma.zip");
         temp.CreateFile("ignore.txt");
 
         var nestedDir = Directory.CreateDirectory(Path.Combine(temp.Path, "nested"));
@@ -98,18 +124,21 @@ public sealed class LaunchInputsStoreTests
     public void ClearIwads_EmptiesOnlyIwadList()
     {
         using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
         var iwad1 = temp.CreateFile("doom1.wad");
         var iwad2 = temp.CreateFile("doom2.iwad");
         var mod = temp.CreateFile("mod-a.pk3");
 
         var store = new LaunchInputsStore(new LaunchInputsConfig
         {
+            SourcePorts = [source],
             Iwads = [iwad1, iwad2],
             Mods = [mod]
         });
 
         store.ClearIwads();
 
+        Assert.Equal([Path.GetFullPath(source)], store.SourcePorts.ToArray());
         Assert.Empty(store.Iwads);
         Assert.Equal([Path.GetFullPath(mod)], store.Mods.ToArray());
     }
@@ -118,18 +147,21 @@ public sealed class LaunchInputsStoreTests
     public void ClearMods_EmptiesOnlyModList()
     {
         using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
         var iwad = temp.CreateFile("doom2.wad");
         var mod1 = temp.CreateFile("mod-a.pk3");
         var mod2 = temp.CreateFile("mod-b.pkz");
 
         var store = new LaunchInputsStore(new LaunchInputsConfig
         {
+            SourcePorts = [source],
             Iwads = [iwad],
             Mods = [mod1, mod2]
         });
 
         store.ClearMods();
 
+        Assert.Equal([Path.GetFullPath(source)], store.SourcePorts.ToArray());
         Assert.Equal([Path.GetFullPath(iwad)], store.Iwads.ToArray());
         Assert.Empty(store.Mods);
     }
@@ -143,22 +175,24 @@ public sealed class LaunchInputsStoreTests
             || extension.Equals(".pk7", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".ipk3", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".ipk7", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".pkz", StringComparison.OrdinalIgnoreCase);
+            || extension.Equals(".pkz", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".zip", StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void LoadFromConfig_AndRemoveMissingPaths_ClearsMissingEntriesAndPreservesOrder()
+    public void LoadFromConfig_AndRemoveMissingPaths_RemovesMissingEntriesAndPreservesOrder()
     {
         using var temp = new TempDirectory();
+        var existingSource = temp.CreateFile("gzdoom.exe");
+        var missingSource = Path.Combine(temp.Path, "missing.exe");
         var existingIwad = temp.CreateFile("doom.wad");
         var missingIwad = Path.Combine(temp.Path, "missing.wad");
         var existingMod = temp.CreateFile("mod-a.pk3");
         var missingMod = Path.Combine(temp.Path, "missing.pk3");
-        var missingSource = Path.Combine(temp.Path, "gzdoom.exe");
 
         var store = new LaunchInputsStore(new LaunchInputsConfig
         {
-            SourcePortPath = missingSource,
+            SourcePorts = [existingSource, missingSource],
             Iwads = [existingIwad, missingIwad],
             Mods = [existingMod, missingMod]
         });
@@ -166,7 +200,7 @@ public sealed class LaunchInputsStoreTests
         var changed = store.RemoveMissingPaths();
 
         Assert.True(changed);
-        Assert.Null(store.SourcePortPath);
+        Assert.Equal([Path.GetFullPath(existingSource)], store.SourcePorts.ToArray());
         Assert.Equal([Path.GetFullPath(existingIwad)], store.Iwads.ToArray());
         Assert.Equal([Path.GetFullPath(existingMod)], store.Mods.ToArray());
     }

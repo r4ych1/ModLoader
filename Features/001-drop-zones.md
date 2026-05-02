@@ -1,7 +1,7 @@
 # Feature 001 - Drag-and-Drop Source Port, IWAD, and Mod Inputs
 
 ## Goal
-Provide a minimal, testable vertical slice that stores one source-port executable and ordered IWAD and Mod lists using drag-and-drop.
+Provide a minimal, testable vertical slice that stores an ordered source-port list and ordered IWAD and Mod lists using drag-and-drop.
 
 ## In Scope
 - Three drop zones:
@@ -9,7 +9,7 @@ Provide a minimal, testable vertical slice that stores one source-port executabl
   - IWAD
   - Mod
 - In-memory state only.
-- Manual clear action for source port.
+- Manual clear action for source-port list.
 - Individual remove action for IWAD and Mod entries.
 
 ## Out Of Scope
@@ -31,7 +31,8 @@ Provide a minimal, testable vertical slice that stores one source-port executabl
 ### Source Port Drop Zone
 - Accept dropped files only.
 - Valid extension allowlist: `.exe`.
-- If multiple valid `.exe` files are accepted in one drop, the last valid accepted file in drop processing order becomes the active source port.
+- Add valid `.exe` files to the ordered source-port list in first-seen order.
+- Ignore duplicates by normalized absolute path (case-insensitive).
 - Ignore dropped directories.
 
 ### IWAD Drop Zone
@@ -58,7 +59,8 @@ Provide a minimal, testable vertical slice that stores one source-port executabl
 ### Source-port validation
 Given dropped files with mixed extensions
 When source-port drop zone processes the drop
-Then only `.exe` files are accepted and the final accepted `.exe` is stored.
+Then only `.exe` files are accepted into the source-port list.
+And duplicates are ignored by normalized absolute path (case-insensitive).
 
 ### IWAD validation and dedupe
 Given dropped files with mixed extensions and repeated IWAD paths

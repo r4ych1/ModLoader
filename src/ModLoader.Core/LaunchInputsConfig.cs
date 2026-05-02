@@ -4,7 +4,9 @@ namespace ModLoader.Core;
 
 public sealed class LaunchInputsConfig
 {
-    public string? SourcePortPath { get; init; }
+    public List<string> SourcePorts { get; init; } = [];
+
+    public string? SelectedSourcePortPath { get; init; }
 
     public List<string> Iwads { get; init; } = [];
 
