@@ -73,6 +73,16 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnClearAllIwadsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.ClearAllIwads();
+    }
+
+    private void OnClearAllModsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.ClearAllMods();
+    }
+
     private void OnIwadRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (IsFromButton(e.Source))

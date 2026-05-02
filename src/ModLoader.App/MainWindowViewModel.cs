@@ -79,6 +79,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public ObservableCollection<string> Mods { get; } = [];
 
+    public bool HasIwads => Iwads.Count > 0;
+
+    public bool HasMods => Mods.Count > 0;
+
     public ObservableCollection<SelectablePathRow> IwadRows { get; } = [];
 
     public ObservableCollection<SelectablePathRow> ModRows { get; } = [];
@@ -164,6 +168,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         PersistState();
     }
 
+    public void ClearAllIwads()
+    {
+        _store.ClearIwads();
+        RefreshFromStore();
+        PersistState();
+    }
+
+    public void ClearAllMods()
+    {
+        _store.ClearMods();
+        RefreshFromStore();
+        PersistState();
+    }
+
     public void ToggleIwadSelection(string path)
     {
         var normalizedPath = PathNormalizer.NormalizeAbsolutePath(path);
@@ -231,6 +249,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         SourcePortPath = _store.SourcePortPath;
         CopyCollection(_store.Iwads, Iwads);
         CopyCollection(_store.Mods, Mods);
+        OnPropertyChanged(nameof(HasIwads));
+        OnPropertyChanged(nameof(HasMods));
         var selectionChanged = NormalizeSelections();
         RefreshRows();
         OnPropertyChanged(nameof(CommandPreviewArguments));

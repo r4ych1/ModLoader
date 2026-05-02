@@ -101,6 +101,18 @@ public sealed class LaunchInputsStore
         SourcePortPath = null;
     }
 
+    public void ClearIwads()
+    {
+        _iwads.Clear();
+        _iwadPathSet.Clear();
+    }
+
+    public void ClearMods()
+    {
+        _mods.Clear();
+        _modPathSet.Clear();
+    }
+
     public void RemoveIwad(string path)
     {
         RemovePath(path, _iwads, _iwadPathSet);
