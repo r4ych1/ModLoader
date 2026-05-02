@@ -11,7 +11,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly ISourcePortLauncher _launcher;
     private readonly ILaunchInputsPersistence _persistence;
     private readonly LaunchInputsStore _store;
-    private string? _sourcePortPath;
+    private string? _selectedSourcePortPath;
     private string? _selectedIwadPath;
     private string? _startupWarningMessage;
 
@@ -54,26 +54,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string? SourcePortPath
-    {
-        get => _sourcePortPath;
-        private set
-        {
-            if (_sourcePortPath == value)
-            {
-                return;
-            }
+    public bool HasSourcePort => !string.IsNullOrWhiteSpace(SelectedSourcePortPath);
 
-            _sourcePortPath = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(HasSourcePort));
-            OnPropertyChanged(nameof(CanLaunch));
-        }
-    }
-
-    public bool HasSourcePort => !string.IsNullOrWhiteSpace(SourcePortPath);
+    public bool HasSourcePorts => SourcePorts.Count > 0;
 
     public bool CanLaunch => HasSourcePort && !string.IsNullOrWhiteSpace(SelectedIwadPath);
+
+    public ObservableCollection<string> SourcePorts { get; } = [];
 
     public ObservableCollection<string> Iwads { get; } = [];
 
@@ -83,9 +70,29 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool HasMods => Mods.Count > 0;
 
+    public ObservableCollection<SelectablePathRow> SourcePortRows { get; } = [];
+
     public ObservableCollection<SelectablePathRow> IwadRows { get; } = [];
 
     public ObservableCollection<SelectablePathRow> ModRows { get; } = [];
+
+    public string? SelectedSourcePortPath
+    {
+        get => _selectedSourcePortPath;
+        private set
+        {
+            if (string.Equals(_selectedSourcePortPath, value, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _selectedSourcePortPath = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasSourcePort));
+            OnPropertyChanged(nameof(CanLaunch));
+            OnPropertyChanged(nameof(CommandPreviewArguments));
+        }
+    }
 
     public string? SelectedIwadPath
     {
@@ -147,9 +154,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         PersistState();
     }
 
+    public void ClearAllSourcePorts()
+    {
+        _store.ClearSourcePorts();
+        RefreshFromStore();
+        PersistState();
+    }
+
     public void ClearSourcePort()
     {
-        _store.ClearSourcePort();
+        ClearAllSourcePorts();
+    }
+
+    public void RemoveSourcePort(string path)
+    {
+        _store.RemoveSourcePort(path);
         RefreshFromStore();
         PersistState();
     }
@@ -179,6 +198,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         _store.ClearMods();
         RefreshFromStore();
+        PersistState();
+    }
+
+    public void ToggleSourcePortSelection(string path)
+    {
+        var normalizedPath = PathNormalizer.NormalizeAbsolutePath(path);
+
+        if (string.Equals(SelectedSourcePortPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedSourcePortPath = null;
+        }
+        else
+        {
+            SelectedSourcePortPath = normalizedPath;
+        }
+
+        RefreshRows();
         PersistState();
     }
 
@@ -229,14 +265,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public void LaunchSourcePort()
     {
-        if (!CanLaunch || string.IsNullOrWhiteSpace(SourcePortPath) || string.IsNullOrWhiteSpace(SelectedIwadPath))
+        if (!CanLaunch || string.IsNullOrWhiteSpace(SelectedSourcePortPath) || string.IsNullOrWhiteSpace(SelectedIwadPath))
         {
             return;
         }
 
         try
         {
-            _launcher.Launch(SourcePortPath, BuildLaunchArguments());
+            _launcher.Launch(SelectedSourcePortPath, BuildLaunchArguments());
         }
         catch (Exception ex)
         {
@@ -246,9 +282,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private bool RefreshFromStore()
     {
-        SourcePortPath = _store.SourcePortPath;
+        CopyCollection(_store.SourcePorts, SourcePorts);
         CopyCollection(_store.Iwads, Iwads);
         CopyCollection(_store.Mods, Mods);
+        OnPropertyChanged(nameof(HasSourcePorts));
         OnPropertyChanged(nameof(HasIwads));
         OnPropertyChanged(nameof(HasMods));
         var selectionChanged = NormalizeSelections();
@@ -269,6 +306,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool NormalizeSelections()
     {
         var changed = false;
+
+        if (!ContainsPath(SourcePorts, SelectedSourcePortPath) && !string.IsNullOrWhiteSpace(SelectedSourcePortPath))
+        {
+            SelectedSourcePortPath = null;
+            changed = true;
+        }
 
         if (!ContainsPath(Iwads, SelectedIwadPath) && !string.IsNullOrWhiteSpace(SelectedIwadPath))
         {
@@ -295,6 +338,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private void InitializeSelectionsFromConfig(LaunchInputsConfig state)
     {
+        if (!string.IsNullOrWhiteSpace(state.SelectedSourcePortPath))
+        {
+            _selectedSourcePortPath = PathNormalizer.NormalizeAbsolutePath(state.SelectedSourcePortPath);
+        }
+
         if (!string.IsNullOrWhiteSpace(state.SelectedIwadPath))
         {
             _selectedIwadPath = PathNormalizer.NormalizeAbsolutePath(state.SelectedIwadPath);
@@ -317,6 +365,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private void RefreshRows()
     {
+        CopyRows(
+            SourcePorts,
+            SourcePortRows,
+            path => string.Equals(path, SelectedSourcePortPath, StringComparison.OrdinalIgnoreCase));
+
         CopyRows(
             Iwads,
             IwadRows,
@@ -380,6 +433,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         var arguments = new List<string>();
 
+        if (!string.IsNullOrWhiteSpace(SelectedSourcePortPath))
+        {
+            arguments.Add(FormatPreviewFileToken(SelectedSourcePortPath));
+        }
+
         if (!string.IsNullOrWhiteSpace(SelectedIwadPath))
         {
             arguments.Add("-iwad");
@@ -438,7 +496,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var snapshot = _store.CreateSnapshot();
         var persistedConfig = new LaunchInputsConfig
         {
-            SourcePortPath = snapshot.SourcePortPath,
+            SourcePorts = [.. snapshot.SourcePorts],
+            SelectedSourcePortPath = SelectedSourcePortPath,
             Iwads = [.. snapshot.Iwads],
             Mods = [.. snapshot.Mods],
             SelectedIwadPath = SelectedIwadPath,

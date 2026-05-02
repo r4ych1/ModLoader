@@ -30,15 +30,18 @@ public sealed class LaunchInputsStore
         ".pk7",
         ".ipk3",
         ".ipk7",
-        ".pkz"
+        ".pkz",
+        ".zip"
     };
 
+    private readonly List<string> _sourcePorts = [];
     private readonly List<string> _iwads = [];
     private readonly List<string> _mods = [];
+    private readonly HashSet<string> _sourcePortPathSet = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _iwadPathSet = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _modPathSet = new(StringComparer.OrdinalIgnoreCase);
 
-    public string? SourcePortPath { get; private set; }
+    public IReadOnlyList<string> SourcePorts => _sourcePorts;
 
     public IReadOnlyList<string> Iwads => _iwads;
 
@@ -55,18 +58,12 @@ public sealed class LaunchInputsStore
 
     public void ProcessSourcePortDrop(IEnumerable<string> droppedPaths)
     {
-        string? finalAcceptedSourcePort = null;
         foreach (var filePath in DropPathExpander.ExpandFiles(droppedPaths, includeTopLevelDirectoryFiles: false))
         {
             if (HasAllowedExtension(filePath, SourcePortExtensions))
             {
-                finalAcceptedSourcePort = PathNormalizer.NormalizeAbsolutePath(filePath);
+                AddUniquePath(filePath, _sourcePorts, _sourcePortPathSet);
             }
-        }
-
-        if (!string.IsNullOrWhiteSpace(finalAcceptedSourcePort))
-        {
-            SourcePortPath = finalAcceptedSourcePort;
         }
     }
 
@@ -96,9 +93,10 @@ public sealed class LaunchInputsStore
         }
     }
 
-    public void ClearSourcePort()
+    public void ClearSourcePorts()
     {
-        SourcePortPath = null;
+        _sourcePorts.Clear();
+        _sourcePortPathSet.Clear();
     }
 
     public void ClearIwads()
@@ -118,6 +116,11 @@ public sealed class LaunchInputsStore
         RemovePath(path, _iwads, _iwadPathSet);
     }
 
+    public void RemoveSourcePort(string path)
+    {
+        RemovePath(path, _sourcePorts, _sourcePortPathSet);
+    }
+
     public void RemoveMod(string path)
     {
         RemovePath(path, _mods, _modPathSet);
@@ -125,15 +128,21 @@ public sealed class LaunchInputsStore
 
     public void LoadFromConfig(LaunchInputsConfig state)
     {
-        SourcePortPath = null;
+        _sourcePorts.Clear();
         _iwads.Clear();
         _mods.Clear();
+        _sourcePortPathSet.Clear();
         _iwadPathSet.Clear();
         _modPathSet.Clear();
 
-        if (!string.IsNullOrWhiteSpace(state.SourcePortPath))
+        foreach (var sourcePortPath in state.SourcePorts ?? [])
         {
-            SourcePortPath = PathNormalizer.NormalizeAbsolutePath(state.SourcePortPath);
+            if (string.IsNullOrWhiteSpace(sourcePortPath))
+            {
+                continue;
+            }
+
+            AddUniquePath(sourcePortPath, _sourcePorts, _sourcePortPathSet);
         }
 
         foreach (var iwadPath in state.Iwads ?? [])
@@ -161,12 +170,7 @@ public sealed class LaunchInputsStore
     {
         var changed = false;
 
-        if (!string.IsNullOrWhiteSpace(SourcePortPath) && !File.Exists(SourcePortPath))
-        {
-            SourcePortPath = null;
-            changed = true;
-        }
-
+        changed |= RemoveMissingEntries(_sourcePorts, _sourcePortPathSet);
         changed |= RemoveMissingEntries(_iwads, _iwadPathSet);
         changed |= RemoveMissingEntries(_mods, _modPathSet);
 
@@ -177,7 +181,7 @@ public sealed class LaunchInputsStore
     {
         return new LaunchInputsConfig
         {
-            SourcePortPath = SourcePortPath,
+            SourcePorts = [.. _sourcePorts],
             Iwads = [.. _iwads],
             Mods = [.. _mods]
         };
@@ -228,9 +232,10 @@ public sealed class LaunchInputsStore
         return true;
     }
 
-    private static bool HasAllowedExtension(string path, HashSet<string> allowedExtensions)
+    private static bool HasAllowedExtension(string fullPath, HashSet<string> allowedExtensions)
     {
-        var extension = Path.GetExtension(path);
+        // Validation is based on the full dropped path, not filename-only tokens.
+        var extension = Path.GetExtension(fullPath);
         return allowedExtensions.Contains(extension);
     }
 

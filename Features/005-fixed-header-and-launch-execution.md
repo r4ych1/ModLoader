@@ -10,7 +10,7 @@ Provide a fixed top header with persistent title/label visibility and a right-al
   - Current label text.
   - Right-aligned `Launch` button.
 - Launch enablement gate:
-  - Enabled only when source port is set and one IWAD is selected.
+  - Enabled only when one source-port row is selected and one IWAD is selected.
 - Launch command generation using full paths:
   - `-iwad <selectedIwadFullPath>`
   - Optional `-file <selectedModFullPath...>` in selected Mod sequence order.
@@ -25,7 +25,7 @@ Provide a fixed top header with persistent title/label visibility and a right-al
 
 ## Definitions
 - Launch readiness:
-  - Source port path is present.
+  - Selected source-port path is present.
   - Selected IWAD path is present.
 - Ordered Mods:
   - The existing selected Mod sequence order.
@@ -38,12 +38,12 @@ Provide a fixed top header with persistent title/label visibility and a right-al
 - Launch button is visually right-aligned in the header row.
 
 ### Launch Gating
-- Launch button is disabled when no source port is set.
+- Launch button is disabled when no source-port row is selected.
 - Launch button is disabled when no IWAD is selected.
 - Launch button is enabled only when both launch-readiness conditions are satisfied.
 
 ### Launch Argument Construction
-- Executable path is the selected source-port full path.
+- Executable path is the selected source-port row full path.
 - Always include exactly one IWAD segment when launching:
   - `-iwad <selectedIwadFullPath>`
 - Include `-file` only when one or more Mods are selected:
@@ -66,10 +66,10 @@ When user scrolls the main content area
 Then header title/label and Launch button remain visible at the top.
 
 ### Launch gating
-Given no source port or no selected IWAD
+Given no selected source-port row or no selected IWAD
 When UI is rendered
 Then Launch button is disabled.
-And given source port is set and one IWAD is selected
+And given one source-port row is selected and one IWAD is selected
 Then Launch button is enabled.
 
 ### Launch command uses full paths

@@ -38,6 +38,8 @@ public sealed class JsonLaunchInputsPersistence : ILaunchInputsPersistence
                 return RecoverFromBrokenConfig();
             }
 
+            loadedConfig = ApplyLegacySourcePortCompatibility(loadedConfig, json);
+
             return new LaunchInputsLoadResult
             {
                 State = loadedConfig
@@ -63,7 +65,8 @@ public sealed class JsonLaunchInputsPersistence : ILaunchInputsPersistence
 
         var stableConfig = new LaunchInputsConfig
         {
-            SourcePortPath = config.SourcePortPath,
+            SourcePorts = [.. (config.SourcePorts ?? [])],
+            SelectedSourcePortPath = config.SelectedSourcePortPath,
             Iwads = [.. (config.Iwads ?? [])],
             Mods = [.. (config.Mods ?? [])],
             SelectedIwadPath = config.SelectedIwadPath,
@@ -87,6 +90,50 @@ public sealed class JsonLaunchInputsPersistence : ILaunchInputsPersistence
             WarningMessage = "Config file was invalid and was reset to an empty state.",
             HadRemediationAction = true
         };
+    }
+
+    private static LaunchInputsConfig ApplyLegacySourcePortCompatibility(LaunchInputsConfig loadedConfig, string json)
+    {
+        if (loadedConfig.SourcePorts.Count > 0 || !string.IsNullOrWhiteSpace(loadedConfig.SelectedSourcePortPath))
+        {
+            return loadedConfig;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+
+            if (root.TryGetProperty("SourcePorts", out _))
+            {
+                return loadedConfig;
+            }
+
+            if (!root.TryGetProperty("SourcePortPath", out var legacySourcePortElement))
+            {
+                return loadedConfig;
+            }
+
+            var legacySourcePortPath = legacySourcePortElement.GetString();
+            if (string.IsNullOrWhiteSpace(legacySourcePortPath))
+            {
+                return loadedConfig;
+            }
+
+            return new LaunchInputsConfig
+            {
+                SourcePorts = [legacySourcePortPath],
+                SelectedSourcePortPath = legacySourcePortPath,
+                Iwads = [.. loadedConfig.Iwads],
+                Mods = [.. loadedConfig.Mods],
+                SelectedIwadPath = loadedConfig.SelectedIwadPath,
+                SelectedModPaths = [.. loadedConfig.SelectedModPaths]
+            };
+        }
+        catch (JsonException)
+        {
+            return loadedConfig;
+        }
     }
 
     private string CreateUniqueBackupPath()

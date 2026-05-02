@@ -52,9 +52,17 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void OnClearSourcePortClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void OnClearAllSourcePortsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        _viewModel.ClearSourcePort();
+        _viewModel.ClearAllSourcePorts();
+    }
+
+    private void OnRemoveSourcePortClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string path)
+        {
+            _viewModel.RemoveSourcePort(path);
+        }
     }
 
     private void OnRemoveIwadClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -81,6 +89,20 @@ public partial class MainWindow : Window
     private void OnClearAllModsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel.ClearAllMods();
+    }
+
+    private void OnSourcePortRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (IsFromButton(e.Source))
+        {
+            return;
+        }
+
+        if (sender is Border border && border.Tag is string path)
+        {
+            _viewModel.ToggleSourcePortSelection(path);
+            e.Handled = true;
+        }
     }
 
     private void OnIwadRowPointerPressed(object? sender, PointerPressedEventArgs e)

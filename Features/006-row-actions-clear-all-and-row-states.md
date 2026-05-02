@@ -1,12 +1,13 @@
 # Feature 006 - Row Action Alignment, Section Clear-All, and Row Interaction States
 
 ## Goal
-Align row-level and section-level actions into a shared right-hand action-column pattern, add deterministic IWAD/Mod clear-all actions, align Source Port clear action with the same inline-right layout pattern, and provide distinct hover/selected/selected+hover row visuals in light and dark themes.
+Align row-level and section-level actions into a shared right-hand action-column pattern, add deterministic Source Port/IWAD/Mod clear-all actions, and provide distinct hover/selected/selected+hover row visuals in light and dark themes.
 
 ## In Scope
 - Row-level `Remove` button alignment for IWAD and Mod rows.
+- Row-level `Remove` button alignment for Source Port, IWAD, and Mod rows.
+- Section-level `Clear All` action for Source Port list.
 - Section-level `Clear All` actions for IWAD and Mod lists.
-- Source Port `Clear Source Port` action inline/right-aligned descriptor-row layout.
 - Clear-all enablement rules based on list emptiness.
 - Row visual states:
   - hover
@@ -36,11 +37,12 @@ Align row-level and section-level actions into a shared right-hand action-column
 - Existing remove behavior is unchanged.
 
 ### Source Port Clear Layout
-- Source Port section keeps existing `Clear Source Port` behavior and enablement gate.
-- `Clear Source Port` appears on the same horizontal row as Source Port descriptive text.
-- `Clear Source Port` is right-aligned using the same section action-column layout pattern used by IWAD/Mod clear actions.
-- `Clear Source Port` is disabled when no source port is selected.
-- `Clear Source Port` is not rendered on a separate line below Source Port descriptive text.
+- Source Port section provides a `Clear All` action using the existing button label.
+- Activating Source Port `Clear All` removes all source-port entries.
+- Source Port `Clear All` appears on the same horizontal row as Source Port descriptive/allowed-file text.
+- Source Port `Clear All` aligns to the same shared right-hand action column pattern used by row-level `Remove` buttons in Source Port.
+- Source Port `Clear All` is disabled when no source-port entries exist.
+- Source Port `Clear All` is not rendered on a separate line below Source Port descriptive text.
 
 ### IWAD Clear All
 - IWAD section provides a `Clear All` action using the existing button label.
@@ -88,10 +90,10 @@ And the `Clear All` button is not rendered on a separate line below the descript
 ### Source Port clear behavior and placement
 Given the Source Port section is rendered
 When the section is displayed
-Then `Clear Source Port` appears on the same horizontal line as Source Port descriptive text.
-And `Clear Source Port` is right-aligned using the same section action-column layout pattern as IWAD/Mod clear actions.
-And `Clear Source Port` is not rendered on a separate line below Source Port descriptive text.
-And `Clear Source Port` remains disabled when no source port is selected.
+Then Source Port `Clear All` appears on the same horizontal line as Source Port descriptive text.
+And Source Port `Clear All` is right-aligned using the same section action-column layout pattern as IWAD/Mod clear actions.
+And Source Port `Clear All` is not rendered on a separate line below Source Port descriptive text.
+And Source Port `Clear All` remains disabled when no source-port entries exist.
 
 ### Clear-all empty-state gating
 Given no IWAD entries

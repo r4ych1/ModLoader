@@ -4,7 +4,7 @@
 ModLoader is a lightweight Windows-first desktop interface for managing Doom source-port launch inputs.
 
 For each launch profile (future feature), users provide:
-- A source-port executable.
+- One source-port input from an ordered source-port list.
 - One IWAD input from an ordered IWAD list.
 - Zero or more mod inputs from an ordered mod list.
 
@@ -31,6 +31,11 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
   - Aligns Source Port/IWAD/Mod section clear actions and row-level `Remove` actions using a shared right-hand action-column layout pattern.
   - Adds IWAD/Mod clear-all behavior and distinct row `hover`, `selected`, and `selected+hover` visuals for light/dark themes.
   - Authoritative spec: `Features/006-row-actions-clear-all-and-row-states.md`.
+- Feature 007: Source-port list parity and Mod `.zip` support.
+  - Replaces single active source-port behavior with ordered source-port list behavior and single-select source-port row state.
+  - Expands Mod allowlist to include `.zip`.
+  - Updates command preview to include selected source-port filename before `-iwad` / `-file` segments.
+  - Authoritative spec: `Features/007-source-port-list-and-mod-zip.md`.
 
 ## Scope Boundary For Feature 001
 Feature 001 provides in-memory state management and UI interactions only. It does not include:
