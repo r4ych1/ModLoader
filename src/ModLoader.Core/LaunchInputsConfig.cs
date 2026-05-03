@@ -6,6 +6,10 @@ public sealed class LaunchInputsConfig
 {
     public List<string> SourcePorts { get; init; } = [];
 
+    public List<ProfileConfig> Profiles { get; init; } = [];
+
+    public string? SelectedProfileId { get; init; }
+
     public string? SelectedSourcePortPath { get; init; }
 
     public List<string> Iwads { get; init; } = [];

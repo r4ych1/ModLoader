@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 
 namespace ModLoader.Core;
@@ -66,6 +67,8 @@ public sealed class JsonLaunchInputsPersistence : ILaunchInputsPersistence
         var stableConfig = new LaunchInputsConfig
         {
             SourcePorts = [.. (config.SourcePorts ?? [])],
+            Profiles = [.. (config.Profiles ?? []).Select(CloneProfile)],
+            SelectedProfileId = config.SelectedProfileId,
             SelectedSourcePortPath = config.SelectedSourcePortPath,
             Iwads = [.. (config.Iwads ?? [])],
             Mods = [.. (config.Mods ?? [])],
@@ -123,6 +126,8 @@ public sealed class JsonLaunchInputsPersistence : ILaunchInputsPersistence
             return new LaunchInputsConfig
             {
                 SourcePorts = [legacySourcePortPath],
+                Profiles = [.. loadedConfig.Profiles],
+                SelectedProfileId = loadedConfig.SelectedProfileId,
                 SelectedSourcePortPath = legacySourcePortPath,
                 Iwads = [.. loadedConfig.Iwads],
                 Mods = [.. loadedConfig.Mods],
@@ -156,5 +161,17 @@ public sealed class JsonLaunchInputsPersistence : ILaunchInputsPersistence
 
             suffix++;
         }
+    }
+
+    private static ProfileConfig CloneProfile(ProfileConfig profile)
+    {
+        return new ProfileConfig
+        {
+            Id = profile.Id,
+            Name = profile.Name,
+            SourcePortPath = profile.SourcePortPath,
+            IwadPath = profile.IwadPath,
+            SelectedModPaths = [.. (profile.SelectedModPaths ?? [])]
+        };
     }
 }

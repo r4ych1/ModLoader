@@ -52,6 +52,29 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void OnNewProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.CreateNewProfile();
+    }
+
+    private void OnDeleteProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string profileId)
+        {
+            _viewModel.RequestDeleteProfile(profileId);
+        }
+    }
+
+    private void OnConfirmDeleteProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.ConfirmDeleteProfile();
+    }
+
+    private void OnCancelDeleteProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.CancelDeleteConfirmation();
+    }
+
     private void OnClearAllSourcePortsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel.ClearAllSourcePorts();
@@ -91,9 +114,75 @@ public partial class MainWindow : Window
         _viewModel.ClearAllMods();
     }
 
+    private void OnProfileRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.ClickCount > 1 || IsFromInteractiveChild(e.Source))
+        {
+            return;
+        }
+
+        if (sender is Border border && border.Tag is string profileId)
+        {
+            _viewModel.ToggleProfileSelection(profileId);
+            e.Handled = true;
+        }
+    }
+
+    private void OnProfileRowDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (IsFromInteractiveChild(e.Source))
+        {
+            return;
+        }
+
+        if (sender is Border border && border.Tag is string profileId)
+        {
+            _viewModel.BeginRenameProfile(profileId);
+            e.Handled = true;
+        }
+    }
+
+    private void OnProfileRenameKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox textBox || textBox.Tag is not string profileId)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Enter)
+        {
+            _viewModel.CommitRename(profileId);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            _viewModel.CancelRename();
+            e.Handled = true;
+        }
+    }
+
+    private void OnProfileRenameLostFocus(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is TextBox textBox && textBox.Tag is string profileId)
+        {
+            _viewModel.CommitRename(profileId);
+        }
+    }
+
+    private void OnProfileRenameTextBoxLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is not TextBox textBox)
+        {
+            return;
+        }
+
+        textBox.Focus();
+        textBox.SelectAll();
+    }
+
     private void OnSourcePortRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (IsFromButton(e.Source))
+        if (IsFromInteractiveChild(e.Source))
         {
             return;
         }
@@ -107,7 +196,7 @@ public partial class MainWindow : Window
 
     private void OnIwadRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (IsFromButton(e.Source))
+        if (IsFromInteractiveChild(e.Source))
         {
             return;
         }
@@ -121,7 +210,7 @@ public partial class MainWindow : Window
 
     private void OnModRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (IsFromButton(e.Source))
+        if (IsFromInteractiveChild(e.Source))
         {
             return;
         }
@@ -164,9 +253,9 @@ public partial class MainWindow : Window
         return localPaths;
     }
 
-    private static bool IsFromButton(object? source)
+    private static bool IsFromInteractiveChild(object? source)
     {
-        if (source is Button)
+        if (source is Button or TextBox)
         {
             return true;
         }
@@ -178,7 +267,7 @@ public partial class MainWindow : Window
 
         foreach (var ancestor in visual.GetVisualAncestors())
         {
-            if (ancestor is Button)
+            if (ancestor is Button or TextBox)
             {
                 return true;
             }

@@ -49,6 +49,7 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+*.log
 *.bak
 
 # Avalonia-specific

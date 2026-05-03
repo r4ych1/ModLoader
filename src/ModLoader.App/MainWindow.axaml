@@ -1,9 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="ModLoader.App.MainWindow"
-        Width="980"
-        Height="760"
-        Title="ModLoader - Feature 007">
+        Width="1180"
+        Height="820"
+        Title="ModLoader - Feature 008">
   <Window.Resources>
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
@@ -38,7 +38,7 @@
     <Style Selector="Border.InputRow">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="CornerRadius" Value="4" />
-      <Setter Property="Padding" Value="4" />
+      <Setter Property="Padding" Value="8" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
@@ -67,9 +67,9 @@
           <TextBlock FontSize="20"
                      FontWeight="Bold"
                      Foreground="#e5e7eb"
-                     Text="Feature 007: Source Ports + Drop Inputs + Launch" />
+                     Text="Feature 008: Profile Workspace" />
           <TextBlock Foreground="#9ca3af"
-                     Text="Drop source-port executable, IWAD files, and Mod files. Select Source Port, IWAD, and ordered Mods to launch." />
+                     Text="Profiles are the only launchable unit. Select a profile on the left, then manage Source Port, IWAD, and Mods from the shared library." />
         </StackPanel>
         <Button Grid.Column="1"
                 Content="Launch"
@@ -83,15 +83,32 @@
     </Border>
 
     <Border DockPanel.Dock="Top"
-            IsVisible="{Binding HasStartupWarning}"
+            IsVisible="{Binding HasMessage}"
             BorderBrush="#f59e0b"
             BorderThickness="1"
             Background="#1af59e0b"
             Padding="10"
             Margin="20,12,20,0">
-      <TextBlock Foreground="#92400e"
-                 FontWeight="SemiBold"
-                 Text="{Binding StartupWarningMessage}" />
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBlock Grid.Column="0"
+                   Foreground="#92400e"
+                   FontWeight="SemiBold"
+                   TextWrapping="Wrap"
+                   VerticalAlignment="Center"
+                   Text="{Binding MessageText}" />
+        <Button Grid.Column="1"
+                Content="Delete"
+                IsVisible="{Binding HasPendingDeleteConfirmation}"
+                Margin="8,0,0,0"
+                VerticalAlignment="Center"
+                Click="OnConfirmDeleteProfileClicked" />
+        <Button Grid.Column="2"
+                Content="Cancel"
+                IsVisible="{Binding HasPendingDeleteConfirmation}"
+                Margin="8,0,0,0"
+                VerticalAlignment="Center"
+                Click="OnCancelDeleteProfileClicked" />
+      </Grid>
     </Border>
 
     <Border DockPanel.Dock="Bottom"
@@ -119,169 +136,264 @@
     </Border>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-      <StackPanel Margin="20" Spacing="12">
-        <TextBlock FontWeight="SemiBold" Text="Source Port Inputs" />
-        <Border Classes="DropZone"
-                DragDrop.AllowDrop="True"
-                DragDrop.DragOver="OnDropZoneDragOver"
-                DragDrop.Drop="OnSourcePortDrop">
-          <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
-            <Grid Grid.Row="0">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" SharedSizeGroup="SourcePortActionColumn" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0"
-                         Text="Allowed: .exe. Drop one or more files. Directories are ignored."
-                         VerticalAlignment="Center" />
+      <Grid Margin="20" ColumnDefinitions="320,*">
+        <Border Grid.Column="0"
+                BorderBrush="#374151"
+                BorderThickness="1"
+                CornerRadius="8"
+                Background="#0f172a"
+                Padding="12">
+          <StackPanel Spacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="#e5e7eb"
+                           Text="Profiles" />
+                <TextBlock Foreground="#94a3b8"
+                           Text="Select, rename, delete, or create a launch profile from the current library selections." />
+              </StackPanel>
               <Button Grid.Column="1"
-                      Content="Clear All"
-                      IsEnabled="{Binding HasSourcePorts}"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Center"
-                      Margin="8,0,0,0"
-                      Click="OnClearAllSourcePortsClicked" />
+                      Content="New Profile"
+                      IsEnabled="{Binding CanCreateProfile}"
+                      VerticalAlignment="Top"
+                      Click="OnNewProfileClicked" />
             </Grid>
-            <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding SourcePortRows}">
+
+            <ItemsControl ItemsSource="{Binding ProfileRows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <Border Classes="InputRow"
                           Classes.selected="{Binding IsSelected}"
-                          Margin="0,4,0,0"
-                          Tag="{Binding Path}"
-                          PointerPressed="OnSourcePortRowPointerPressed">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="SourcePortActionColumn" />
-                      </Grid.ColumnDefinitions>
-                      <TextBlock Grid.Column="0"
-                                 Text="{Binding Path}"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                      <Button Grid.Column="1"
-                              Content="Remove"
-                              Tag="{Binding Path}"
-                              HorizontalAlignment="Right"
-                              VerticalAlignment="Center"
-                              Margin="8,0,0,0"
-                              Click="OnRemoveSourcePortClicked" />
+                          Margin="0,0,0,8"
+                          Tag="{Binding Id}"
+                          PointerPressed="OnProfileRowPointerPressed"
+                          DoubleTapped="OnProfileRowDoubleTapped">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Grid.Column="0" Spacing="6">
+                        <StackPanel IsVisible="{Binding IsDisplayVisible}" Spacing="4">
+                          <TextBlock FontWeight="SemiBold"
+                                     Text="{Binding Name}" />
+                          <TextBlock IsVisible="{Binding HasInvalidReason}"
+                                     Foreground="#f59e0b"
+                                     TextWrapping="Wrap"
+                                     Text="{Binding InvalidReason}" />
+                        </StackPanel>
+                        <TextBox IsVisible="{Binding IsRenameVisible}"
+                                 Tag="{Binding Id}"
+                                 Text="{Binding RenameText, Mode=TwoWay}"
+                                 KeyDown="OnProfileRenameKeyDown"
+                                 LostFocus="OnProfileRenameLostFocus"
+                                 Loaded="OnProfileRenameTextBoxLoaded" />
+                      </StackPanel>
+
+                      <StackPanel Grid.Column="1"
+                                  IsVisible="{Binding IsDisplayVisible}"
+                                  Spacing="6"
+                                  Margin="8,0,0,0"
+                                  VerticalAlignment="Top">
+                        <Border IsVisible="{Binding IsInvalid}"
+                                Background="#44311d"
+                                CornerRadius="999"
+                                Padding="8,2">
+                          <TextBlock Foreground="#f59e0b"
+                                     FontSize="11"
+                                     FontWeight="Bold"
+                                     Text="INVALID" />
+                        </Border>
+                        <Button Content="Delete"
+                                Tag="{Binding Id}"
+                                HorizontalAlignment="Right"
+                                Click="OnDeleteProfileClicked" />
+                      </StackPanel>
                     </Grid>
                   </Border>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-          </Grid>
+          </StackPanel>
         </Border>
 
-        <TextBlock FontWeight="SemiBold" Text="IWAD Inputs" />
-        <Border Classes="DropZone"
-                DragDrop.AllowDrop="True"
-                DragDrop.DragOver="OnDropZoneDragOver"
-                DragDrop.Drop="OnIwadDrop">
-          <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
-            <Grid Grid.Row="0">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" SharedSizeGroup="IwadActionColumn" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0"
-                         Text="Allowed: .wad, .pk3, .iwad, .ipk3, .ipk7, .pk7. Directories scan top-level files only."
-                         VerticalAlignment="Center" />
-              <Button Grid.Column="1"
-                      Content="Clear All"
-                      IsEnabled="{Binding HasIwads}"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Center"
-                      Margin="8,0,0,0"
-                      Click="OnClearAllIwadsClicked" />
-            </Grid>
-            <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding IwadRows}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Border Classes="InputRow"
-                          Classes.selected="{Binding IsSelected}"
-                          Margin="0,4,0,0"
-                          Tag="{Binding Path}"
-                          PointerPressed="OnIwadRowPointerPressed">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="IwadActionColumn" />
-                      </Grid.ColumnDefinitions>
-                      <TextBlock Grid.Column="0"
-                                 Text="{Binding Path}"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                      <Button Grid.Column="1"
-                              Content="Remove"
-                              Tag="{Binding Path}"
-                              HorizontalAlignment="Right"
-                              VerticalAlignment="Center"
-                              Margin="8,0,0,0"
-                              Click="OnRemoveIwadClicked" />
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </Grid>
-        </Border>
+        <StackPanel Grid.Column="1" Spacing="12" Margin="16,0,0,0">
+          <Border BorderBrush="#374151"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Background="#0f172a"
+                  Padding="12">
+            <StackPanel Spacing="4">
+              <TextBlock FontSize="18"
+                         FontWeight="Bold"
+                         Foreground="#e5e7eb"
+                         Text="{Binding SelectedProfileName}" />
+              <TextBlock Foreground="#94a3b8"
+                         TextWrapping="Wrap"
+                         Text="{Binding SelectedProfileStatusText}" />
+            </StackPanel>
+          </Border>
 
-        <TextBlock FontWeight="SemiBold" Text="Mod Inputs" />
-        <Border Classes="DropZone"
-                DragDrop.AllowDrop="True"
-                DragDrop.DragOver="OnDropZoneDragOver"
-                DragDrop.Drop="OnModDrop">
-          <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
-            <Grid Grid.Row="0">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" SharedSizeGroup="ModActionColumn" />
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0"
-                         Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz, .zip. Directories scan top-level files only."
-                         VerticalAlignment="Center" />
-              <Button Grid.Column="1"
-                      Content="Clear All"
-                      IsEnabled="{Binding HasMods}"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Center"
-                      Margin="8,0,0,0"
-                      Click="OnClearAllModsClicked" />
+          <TextBlock FontWeight="SemiBold" Text="Source Port Inputs" />
+          <Border Classes="DropZone"
+                  DragDrop.AllowDrop="True"
+                  DragDrop.DragOver="OnDropZoneDragOver"
+                  DragDrop.Drop="OnSourcePortDrop">
+            <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
+              <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" SharedSizeGroup="SourcePortActionColumn" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Allowed: .exe. Drop one or more files. Directories are ignored."
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Content="Clear All"
+                        IsEnabled="{Binding HasSourcePorts}"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="8,0,0,0"
+                        Click="OnClearAllSourcePortsClicked" />
+              </Grid>
+              <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding SourcePortRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="InputRow"
+                            Classes.selected="{Binding IsSelected}"
+                            Margin="0,4,0,0"
+                            Tag="{Binding Path}"
+                            PointerPressed="OnSourcePortRowPointerPressed">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" SharedSizeGroup="SourcePortActionColumn" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding Path}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="Remove"
+                                Tag="{Binding Path}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Margin="8,0,0,0"
+                                Click="OnRemoveSourcePortClicked" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
             </Grid>
-            <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding ModRows}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Border Classes="InputRow"
-                          Classes.selected="{Binding IsSelected}"
-                          Margin="0,4,0,0"
-                          Tag="{Binding Path}"
-                          PointerPressed="OnModRowPointerPressed">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="ModActionColumn" />
-                      </Grid.ColumnDefinitions>
-                      <TextBlock Grid.Column="0"
-                                 Text="{Binding Path}"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                      <Button Grid.Column="1"
-                              Content="Remove"
-                              Tag="{Binding Path}"
-                              HorizontalAlignment="Right"
-                              VerticalAlignment="Center"
-                              Margin="8,0,0,0"
-                              Click="OnRemoveModClicked" />
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </Grid>
-        </Border>
-      </StackPanel>
+          </Border>
+
+          <TextBlock FontWeight="SemiBold" Text="IWAD Inputs" />
+          <Border Classes="DropZone"
+                  DragDrop.AllowDrop="True"
+                  DragDrop.DragOver="OnDropZoneDragOver"
+                  DragDrop.Drop="OnIwadDrop">
+            <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
+              <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" SharedSizeGroup="IwadActionColumn" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Allowed: .wad, .pk3, .iwad, .ipk3, .ipk7, .pk7. Directories scan top-level files only."
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Content="Clear All"
+                        IsEnabled="{Binding HasIwads}"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="8,0,0,0"
+                        Click="OnClearAllIwadsClicked" />
+              </Grid>
+              <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding IwadRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="InputRow"
+                            Classes.selected="{Binding IsSelected}"
+                            Margin="0,4,0,0"
+                            Tag="{Binding Path}"
+                            PointerPressed="OnIwadRowPointerPressed">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" SharedSizeGroup="IwadActionColumn" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding Path}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="Remove"
+                                Tag="{Binding Path}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Margin="8,0,0,0"
+                                Click="OnRemoveIwadClicked" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Grid>
+          </Border>
+
+          <TextBlock FontWeight="SemiBold" Text="Mod Inputs" />
+          <Border Classes="DropZone"
+                  DragDrop.AllowDrop="True"
+                  DragDrop.DragOver="OnDropZoneDragOver"
+                  DragDrop.Drop="OnModDrop">
+            <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
+              <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" SharedSizeGroup="ModActionColumn" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz, .zip. Directories scan top-level files only."
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Content="Clear All"
+                        IsEnabled="{Binding HasMods}"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="8,0,0,0"
+                        Click="OnClearAllModsClicked" />
+              </Grid>
+              <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding ModRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="InputRow"
+                            Classes.selected="{Binding IsSelected}"
+                            Margin="0,4,0,0"
+                            Tag="{Binding Path}"
+                            PointerPressed="OnModRowPointerPressed">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" SharedSizeGroup="ModActionColumn" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding Path}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="Remove"
+                                Tag="{Binding Path}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Margin="8,0,0,0"
+                                Click="OnRemoveModClicked" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Grid>
+          </Border>
+        </StackPanel>
+      </Grid>
     </ScrollViewer>
   </DockPanel>
 </Window>

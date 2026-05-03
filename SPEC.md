@@ -3,12 +3,13 @@
 ## Product Baseline
 ModLoader is a lightweight Windows-first desktop interface for managing Doom source-port launch inputs.
 
-For each launch profile (future feature), users provide:
+For each launch profile, users provide:
 - One source-port input from an ordered source-port list.
 - One IWAD input from an ordered IWAD list.
 - Zero or more mod inputs from an ordered mod list.
 
-Feature 005 adds launch execution for the current single-profile workflow using the selected IWAD and selected ordered Mods.
+Feature 005 added launch execution for the pre-profile single-selection workflow.
+Feature 008 makes saved profiles the only launchable unit while keeping Source Ports, IWADs, and Mods as shared library collections.
 
 This repository follows feature-scoped delivery. Behavior is only guaranteed when specified in feature specs under `Features/`.
 
@@ -36,6 +37,11 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
   - Expands Mod allowlist to include `.zip`.
   - Updates command preview to include selected source-port filename before `-iwad` / `-file` segments.
   - Authoritative spec: `Features/007-source-port-list-and-mod-zip.md`.
+- Feature 008: Selection-based profile workspace.
+  - Adds saved profiles as the primary launch model in a two-pane workspace: profile list on the left and shared file library on the right.
+  - Profiles persist source port, IWAD, and ordered mod references to the shared library and are the only launchable unit.
+  - Profile edits auto-save immediately through file-library selection changes; launch requires a selected valid saved profile.
+  - Authoritative spec: `Features/008-profile-management.md`.
 
 ## Scope Boundary For Feature 001
 Feature 001 provides in-memory state management and UI interactions only. It does not include:

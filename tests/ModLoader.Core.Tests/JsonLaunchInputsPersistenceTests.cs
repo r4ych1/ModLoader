@@ -18,6 +18,8 @@ public sealed class JsonLaunchInputsPersistenceTests
         Assert.False(result.HadRemediationAction);
         Assert.Null(result.WarningMessage);
         Assert.Empty(result.State.SourcePorts);
+        Assert.Empty(result.State.Profiles);
+        Assert.Null(result.State.SelectedProfileId);
         Assert.Null(result.State.SelectedSourcePortPath);
         Assert.Empty(result.State.Iwads);
         Assert.Empty(result.State.Mods);
@@ -26,7 +28,7 @@ public sealed class JsonLaunchInputsPersistenceTests
     }
 
     [Fact]
-    public void Save_ThenLoad_PreservesStateAndOrdering()
+    public void Save_ThenLoad_PreservesLibraryProfilesAndSelectionState()
     {
         using var temp = new TempDirectory();
         var configPath = Path.Combine(temp.Path, "modloader.config.json");
@@ -35,22 +37,40 @@ public sealed class JsonLaunchInputsPersistenceTests
         var state = new LaunchInputsConfig
         {
             SourcePorts = [Path.Combine(temp.Path, "gzdoom.exe"), Path.Combine(temp.Path, "vkdoom.exe")],
-            SelectedSourcePortPath = Path.Combine(temp.Path, "vkdoom.exe"),
+            Profiles =
+            [
+                new ProfileConfig
+                {
+                    Id = "p1",
+                    Name = "Profile 1",
+                    SourcePortPath = Path.Combine(temp.Path, "gzdoom.exe"),
+                    IwadPath = Path.Combine(temp.Path, "doom2.wad"),
+                    SelectedModPaths = [Path.Combine(temp.Path, "mod-b.pk3"), Path.Combine(temp.Path, "mod-a.pk3")]
+                }
+            ],
+            SelectedProfileId = "p1",
+            SelectedSourcePortPath = null,
             Iwads = [Path.Combine(temp.Path, "doom.wad"), Path.Combine(temp.Path, "doom2.wad")],
             Mods = [Path.Combine(temp.Path, "mod-a.pk3"), Path.Combine(temp.Path, "mod-b.pk3")],
-            SelectedIwadPath = Path.Combine(temp.Path, "doom2.wad"),
-            SelectedModPaths = [Path.Combine(temp.Path, "mod-b.pk3"), Path.Combine(temp.Path, "mod-a.pk3")]
+            SelectedIwadPath = null,
+            SelectedModPaths = []
         };
 
         persistence.Save(state);
         var result = persistence.Load();
 
         Assert.Equal(state.SourcePorts, result.State.SourcePorts);
-        Assert.Equal(state.SelectedSourcePortPath, result.State.SelectedSourcePortPath);
+        Assert.Equal(state.SelectedProfileId, result.State.SelectedProfileId);
         Assert.Equal(state.Iwads, result.State.Iwads);
         Assert.Equal(state.Mods, result.State.Mods);
-        Assert.Equal(state.SelectedIwadPath, result.State.SelectedIwadPath);
-        Assert.Equal(state.SelectedModPaths, result.State.SelectedModPaths);
+        Assert.Single(result.State.Profiles);
+        Assert.Equal("p1", result.State.Profiles[0].Id);
+        Assert.Equal("Profile 1", result.State.Profiles[0].Name);
+        Assert.Equal(Path.Combine(temp.Path, "gzdoom.exe"), result.State.Profiles[0].SourcePortPath);
+        Assert.Equal(Path.Combine(temp.Path, "doom2.wad"), result.State.Profiles[0].IwadPath);
+        Assert.Equal(
+            [Path.Combine(temp.Path, "mod-b.pk3"), Path.Combine(temp.Path, "mod-a.pk3")],
+            result.State.Profiles[0].SelectedModPaths);
     }
 
     [Fact]
@@ -75,6 +95,8 @@ public sealed class JsonLaunchInputsPersistenceTests
 
         Assert.Equal([legacySourcePort], result.State.SourcePorts);
         Assert.Equal(legacySourcePort, result.State.SelectedSourcePortPath);
+        Assert.Empty(result.State.Profiles);
+        Assert.Null(result.State.SelectedProfileId);
     }
 
     [Fact]
@@ -91,6 +113,8 @@ public sealed class JsonLaunchInputsPersistenceTests
         Assert.True(result.HadRemediationAction);
         Assert.NotNull(result.WarningMessage);
         Assert.Empty(result.State.SourcePorts);
+        Assert.Empty(result.State.Profiles);
+        Assert.Null(result.State.SelectedProfileId);
         Assert.Null(result.State.SelectedSourcePortPath);
         Assert.Empty(result.State.Iwads);
         Assert.Empty(result.State.Mods);
@@ -105,6 +129,8 @@ public sealed class JsonLaunchInputsPersistenceTests
         var replacementState = JsonSerializer.Deserialize<LaunchInputsConfig>(replacementJson);
         Assert.NotNull(replacementState);
         Assert.Empty(replacementState.SourcePorts);
+        Assert.Empty(replacementState.Profiles);
+        Assert.Null(replacementState.SelectedProfileId);
         Assert.Null(replacementState.SelectedSourcePortPath);
         Assert.Empty(replacementState.Iwads);
         Assert.Empty(replacementState.Mods);
