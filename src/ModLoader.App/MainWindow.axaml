@@ -144,21 +144,14 @@
                 Background="#0f172a"
                 Padding="12">
           <StackPanel Spacing="12">
-            <Grid ColumnDefinitions="*,Auto">
-              <StackPanel Spacing="2">
-                <TextBlock FontSize="18"
-                           FontWeight="Bold"
-                           Foreground="#e5e7eb"
-                           Text="Profiles" />
-                <TextBlock Foreground="#94a3b8"
-                           Text="Select, rename, delete, or create a launch profile from the current library selections." />
-              </StackPanel>
-              <Button Grid.Column="1"
-                      Content="New Profile"
-                      IsEnabled="{Binding CanCreateProfile}"
-                      VerticalAlignment="Top"
-                      Click="OnNewProfileClicked" />
-            </Grid>
+            <StackPanel Spacing="2">
+              <TextBlock FontSize="18"
+                         FontWeight="Bold"
+                         Foreground="#e5e7eb"
+                         Text="Profiles" />
+              <TextBlock Foreground="#94a3b8"
+                         Text="Select, rename, or delete a launch profile from the saved profile list." />
+            </StackPanel>
 
             <ItemsControl ItemsSource="{Binding ProfileRows}">
               <ItemsControl.ItemTemplate>
@@ -167,8 +160,7 @@
                           Classes.selected="{Binding IsSelected}"
                           Margin="0,0,0,8"
                           Tag="{Binding Id}"
-                          PointerPressed="OnProfileRowPointerPressed"
-                          DoubleTapped="OnProfileRowDoubleTapped">
+                          PointerPressed="OnProfileRowPointerPressed">
                     <Grid ColumnDefinitions="*,Auto">
                       <StackPanel Grid.Column="0" Spacing="6">
                         <StackPanel IsVisible="{Binding IsDisplayVisible}" Spacing="4">
@@ -201,10 +193,16 @@
                                      FontWeight="Bold"
                                      Text="INVALID" />
                         </Border>
-                        <Button Content="Delete"
-                                Tag="{Binding Id}"
-                                HorizontalAlignment="Right"
-                                Click="OnDeleteProfileClicked" />
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="8"
+                                    HorizontalAlignment="Right">
+                          <Button Content="Rename"
+                                  Tag="{Binding Id}"
+                                  Click="OnRenameProfileClicked" />
+                          <Button Content="Delete"
+                                  Tag="{Binding Id}"
+                                  Click="OnDeleteProfileClicked" />
+                        </StackPanel>
                       </StackPanel>
                     </Grid>
                   </Border>
@@ -220,15 +218,24 @@
                   CornerRadius="8"
                   Background="#0f172a"
                   Padding="12">
-            <StackPanel Spacing="4">
-              <TextBlock FontSize="18"
-                         FontWeight="Bold"
-                         Foreground="#e5e7eb"
-                         Text="{Binding SelectedProfileName}" />
-              <TextBlock Foreground="#94a3b8"
-                         TextWrapping="Wrap"
-                         Text="{Binding SelectedProfileStatusText}" />
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="#e5e7eb"
+                           Text="{Binding SelectedProfileName}" />
+                <TextBlock Foreground="#94a3b8"
+                           TextWrapping="Wrap"
+                           Text="{Binding SelectedProfileStatusText}" />
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Content="New Profile"
+                      IsEnabled="{Binding CanCreateProfile}"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Top"
+                      Margin="12,0,0,0"
+                      Click="OnNewProfileClicked" />
+            </Grid>
           </Border>
 
           <TextBlock FontWeight="SemiBold" Text="Source Port Inputs" />
@@ -245,15 +252,23 @@
                 <TextBlock Grid.Column="0"
                            Text="Allowed: .exe. Drop one or more files. Directories are ignored."
                            VerticalAlignment="Center" />
-                <Button Grid.Column="1"
-                        Content="Clear All"
-                        IsEnabled="{Binding HasSourcePorts}"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Margin="8,0,0,0"
-                        Click="OnClearAllSourcePortsClicked" />
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Margin="8,0,0,0">
+                  <Button Content="{Binding SourcePortSectionToggleText}"
+                          Click="OnToggleSourcePortSectionCollapsedClicked" />
+                  <Button Content="Clear All"
+                          IsEnabled="{Binding HasSourcePorts}"
+                          Click="OnClearAllSourcePortsClicked" />
+                </StackPanel>
               </Grid>
-              <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding SourcePortRows}">
+              <ItemsControl Grid.Row="1"
+                            Margin="0,8,0,0"
+                            ItemsSource="{Binding SourcePortRows}"
+                            IsVisible="{Binding AreSourcePortRowsVisible}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border Classes="InputRow"
@@ -299,15 +314,23 @@
                 <TextBlock Grid.Column="0"
                            Text="Allowed: .wad, .pk3, .iwad, .ipk3, .ipk7, .pk7. Directories scan top-level files only."
                            VerticalAlignment="Center" />
-                <Button Grid.Column="1"
-                        Content="Clear All"
-                        IsEnabled="{Binding HasIwads}"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Margin="8,0,0,0"
-                        Click="OnClearAllIwadsClicked" />
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Margin="8,0,0,0">
+                  <Button Content="{Binding IwadSectionToggleText}"
+                          Click="OnToggleIwadSectionCollapsedClicked" />
+                  <Button Content="Clear All"
+                          IsEnabled="{Binding HasIwads}"
+                          Click="OnClearAllIwadsClicked" />
+                </StackPanel>
               </Grid>
-              <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding IwadRows}">
+              <ItemsControl Grid.Row="1"
+                            Margin="0,8,0,0"
+                            ItemsSource="{Binding IwadRows}"
+                            IsVisible="{Binding AreIwadRowsVisible}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border Classes="InputRow"
@@ -353,15 +376,23 @@
                 <TextBlock Grid.Column="0"
                            Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz, .zip. Directories scan top-level files only."
                            VerticalAlignment="Center" />
-                <Button Grid.Column="1"
-                        Content="Clear All"
-                        IsEnabled="{Binding HasMods}"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Margin="8,0,0,0"
-                        Click="OnClearAllModsClicked" />
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Margin="8,0,0,0">
+                  <Button Content="{Binding ModSectionToggleText}"
+                          Click="OnToggleModSectionCollapsedClicked" />
+                  <Button Content="Clear All"
+                          IsEnabled="{Binding HasMods}"
+                          Click="OnClearAllModsClicked" />
+                </StackPanel>
               </Grid>
-              <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding ModRows}">
+              <ItemsControl Grid.Row="1"
+                            Margin="0,8,0,0"
+                            ItemsSource="{Binding ModRows}"
+                            IsVisible="{Binding AreModRowsVisible}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border Classes="InputRow"

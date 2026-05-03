@@ -65,6 +65,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnRenameProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string profileId)
+        {
+            _viewModel.BeginRenameProfile(profileId);
+        }
+    }
+
     private void OnConfirmDeleteProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel.ConfirmDeleteProfile();
@@ -78,6 +86,11 @@ public partial class MainWindow : Window
     private void OnClearAllSourcePortsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel.ClearAllSourcePorts();
+    }
+
+    private void OnToggleSourcePortSectionCollapsedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.ToggleSourcePortSectionCollapsed();
     }
 
     private void OnRemoveSourcePortClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -109,9 +122,19 @@ public partial class MainWindow : Window
         _viewModel.ClearAllIwads();
     }
 
+    private void OnToggleIwadSectionCollapsedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.ToggleIwadSectionCollapsed();
+    }
+
     private void OnClearAllModsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel.ClearAllMods();
+    }
+
+    private void OnToggleModSectionCollapsedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.ToggleModSectionCollapsed();
     }
 
     private void OnProfileRowPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -124,20 +147,6 @@ public partial class MainWindow : Window
         if (sender is Border border && border.Tag is string profileId)
         {
             _viewModel.ToggleProfileSelection(profileId);
-            e.Handled = true;
-        }
-    }
-
-    private void OnProfileRowDoubleTapped(object? sender, TappedEventArgs e)
-    {
-        if (IsFromInteractiveChild(e.Source))
-        {
-            return;
-        }
-
-        if (sender is Border border && border.Tag is string profileId)
-        {
-            _viewModel.BeginRenameProfile(profileId);
             e.Handled = true;
         }
     }

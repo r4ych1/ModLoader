@@ -5,8 +5,8 @@ Introduce saved launch profiles as the primary launch model by converting the cu
 
 ## In Scope
 - Saved profile list with single-select toggle behavior.
-- Profile creation from current valid library selections using generated default names.
-- Inline profile rename by double-click.
+- Profile creation from current valid library selections using generated default names from the right-pane library header area.
+- Inline profile rename initiated by an explicit row action.
 - Profile delete with confirmation.
 - Immediate profile auto-save when editing a selected profile through library selection changes.
 - Persisted `Profiles` and `SelectedProfileId`.
@@ -38,14 +38,16 @@ Introduce saved launch profiles as the primary launch model by converting the cu
 - The window becomes a two-pane workspace:
   - Left pane: profile management.
   - Right pane: the existing shared Source Port / IWAD / Mod library.
+- The right pane begins with a selected-profile header area that also contains the `New Profile` action.
+- `New Profile` is right-aligned within that header area and aligned with the selected profile name header.
 - The footer command preview remains visible and reflects current library selections, even when no profile is selected.
 - The existing top message/warning area is reused for rename validation and delete confirmation.
 
 ### Profile List And Selection
 - Left pane shows:
   - saved profile rows
-  - `New Profile` action
   - invalid-state indicators
+  - rename access
   - delete access
 - Profile rows are single-select toggle rows:
   - Clicking an unselected row selects it.
@@ -56,7 +58,7 @@ Introduce saved launch profiles as the primary launch model by converting the cu
   - sets `SelectedProfileId` to `null`
   - clears current Source Port / IWAD / Mod selections
   - disables Launch
-- Double-clicking a profile row selects it and opens inline rename mode for that row.
+- Double-clicking a profile row has no special behavior beyond the existing row-selection interaction model.
 
 ### Profile Creation
 - `New Profile` is enabled only when current library selections contain:
@@ -75,7 +77,9 @@ Introduce saved launch profiles as the primary launch model by converting the cu
 - When a profile is selected, editing Source Port / IWAD / Mod selections changes that selected profile immediately and persists after each change.
 - Auto-save includes transitions into invalid state.
 - There is no Save, Save As, dirty state, unsaved-changes prompt, or separate profile-name field.
-- Profile rename is available only by inline row rename.
+- Each profile row exposes a `Rename` action immediately to the left of `Delete`.
+- Profile rename is available only by the row `Rename` action opening inline rename mode for that row.
+- Activating `Rename` selects that profile before opening inline rename mode.
 - Rename commit behavior:
   - `Enter` saves if valid.
   - Clicking outside the rename input saves if valid.
@@ -171,13 +175,20 @@ When Source Port / IWAD / Mod selections change in the shared library
 Then the selected profile persists those changes immediately.
 And those changes may place the profile into or out of invalid state.
 
-### Double-click rename
+### Explicit rename action
 Given a saved profile row exists
-When the row is double-clicked
+When `Rename` is activated for that row
 Then that profile becomes selected.
 And inline rename mode opens for that row.
 And `Enter` or outside click saves a valid unique non-empty name.
 And `Escape` restores the previous saved name.
+
+### New profile placement
+Given the workspace is rendered
+When the right-pane selected-profile header area is displayed
+Then `New Profile` appears in that header area.
+And `New Profile` is right-aligned and aligned with the selected profile name header.
+And the left profile pane does not render a second `New Profile` action.
 
 ### Rename validation
 Given a profile is in rename mode

@@ -112,6 +112,67 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ToggleSectionCollapse_PersistsStateAndUpdatesVisibility()
+    {
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+
+        Assert.True(viewModel.AreSourcePortRowsVisible);
+        Assert.Equal("Collapse", viewModel.SourcePortSectionToggleText);
+        Assert.True(viewModel.AreIwadRowsVisible);
+        Assert.Equal("Collapse", viewModel.IwadSectionToggleText);
+        Assert.True(viewModel.AreModRowsVisible);
+        Assert.Equal("Collapse", viewModel.ModSectionToggleText);
+
+        viewModel.ToggleSourcePortSectionCollapsed();
+        viewModel.ToggleIwadSectionCollapsed();
+        viewModel.ToggleModSectionCollapsed();
+
+        Assert.True(viewModel.IsSourcePortSectionCollapsed);
+        Assert.False(viewModel.AreSourcePortRowsVisible);
+        Assert.Equal("Expand", viewModel.SourcePortSectionToggleText);
+        Assert.True(viewModel.IsIwadSectionCollapsed);
+        Assert.False(viewModel.AreIwadRowsVisible);
+        Assert.Equal("Expand", viewModel.IwadSectionToggleText);
+        Assert.True(viewModel.IsModSectionCollapsed);
+        Assert.False(viewModel.AreModRowsVisible);
+        Assert.Equal("Expand", viewModel.ModSectionToggleText);
+
+        Assert.True(persistence.SavedStates.Last().IsSourcePortSectionCollapsed);
+        Assert.True(persistence.SavedStates.Last().IsIwadSectionCollapsed);
+        Assert.True(persistence.SavedStates.Last().IsModSectionCollapsed);
+    }
+
+    [Fact]
+    public void Constructor_WithPersistedCollapseState_RestoresSectionVisibility()
+    {
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    IsSourcePortSectionCollapsed = true,
+                    IsIwadSectionCollapsed = false,
+                    IsModSectionCollapsed = true
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        Assert.True(viewModel.IsSourcePortSectionCollapsed);
+        Assert.False(viewModel.AreSourcePortRowsVisible);
+        Assert.Equal("Expand", viewModel.SourcePortSectionToggleText);
+        Assert.False(viewModel.IsIwadSectionCollapsed);
+        Assert.True(viewModel.AreIwadRowsVisible);
+        Assert.Equal("Collapse", viewModel.IwadSectionToggleText);
+        Assert.True(viewModel.IsModSectionCollapsed);
+        Assert.False(viewModel.AreModRowsVisible);
+        Assert.Equal("Expand", viewModel.ModSectionToggleText);
+    }
+
+    [Fact]
     public void ToggleSelections_WhenProfileSelected_AutoSavesProfileAndCanBecomeInvalid()
     {
         using var temp = new TempDirectory();
@@ -275,6 +336,48 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void BeginRenameProfile_SelectsProfileAndHydratesSelections()
+    {
+        using var temp = new TempDirectory();
+        var source1 = temp.CreateFile("gzdoom.exe");
+        var source2 = temp.CreateFile("vkdoom.exe");
+        var iwad1 = temp.CreateFile("doom.wad");
+        var iwad2 = temp.CreateFile("doom2.wad");
+        var mod1 = temp.CreateFile("mod-a.pk3");
+        var mod2 = temp.CreateFile("mod-b.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source1, source2],
+                    Iwads = [iwad1, iwad2],
+                    Mods = [mod1, mod2],
+                    Profiles =
+                    [
+                        CreateProfile("p1", "Profile 1", source1, iwad1, mod1),
+                        CreateProfile("p2", "Profile 2", source2, iwad2, mod2)
+                    ]
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.BeginRenameProfile("p2");
+
+        var row = viewModel.ProfileRows.Single(candidate => candidate.Id == "p2");
+        Assert.True(row.IsRenaming);
+        Assert.Equal("Profile 2", viewModel.SelectedProfileName);
+        Assert.Equal(Path.GetFullPath(source2), viewModel.SelectedSourcePortPath);
+        Assert.Equal(Path.GetFullPath(iwad2), viewModel.SelectedIwadPath);
+        Assert.Equal([Path.GetFullPath(mod2)], viewModel.SelectedModPaths);
+        Assert.Equal("p2", persistence.SavedStates.Last().SelectedProfileId);
+    }
+
+    [Fact]
     public void CommitRename_DuplicateName_ShowsValidationAndKeepsRenameOpen()
     {
         using var temp = new TempDirectory();
@@ -426,9 +529,12 @@ internal sealed class RecordingPersistence : ILaunchInputsPersistence
             SourcePorts = [.. config.SourcePorts],
             Profiles = [.. config.Profiles.Select(CloneProfile)],
             SelectedProfileId = config.SelectedProfileId,
+            IsSourcePortSectionCollapsed = config.IsSourcePortSectionCollapsed,
             SelectedSourcePortPath = config.SelectedSourcePortPath,
             Iwads = [.. config.Iwads],
+            IsIwadSectionCollapsed = config.IsIwadSectionCollapsed,
             Mods = [.. config.Mods],
+            IsModSectionCollapsed = config.IsModSectionCollapsed,
             SelectedIwadPath = config.SelectedIwadPath,
             SelectedModPaths = [.. config.SelectedModPaths]
         });

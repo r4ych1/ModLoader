@@ -13,6 +13,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly ILaunchInputsPersistence _persistence;
     private readonly LaunchInputsStore _store;
     private readonly List<ProfileConfig> _profiles = [];
+    private bool _isIwadSectionCollapsed;
+    private bool _isModSectionCollapsed;
+    private bool _isSourcePortSectionCollapsed;
     private string? _messageText;
     private string? _pendingDeleteProfileId;
     private string? _selectedIwadPath;
@@ -41,6 +44,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var loadResult = _persistence.Load();
         _store = new LaunchInputsStore(loadResult.State);
         LoadProfilesFromConfig(loadResult.State);
+        IsSourcePortSectionCollapsed = loadResult.State.IsSourcePortSectionCollapsed;
+        IsIwadSectionCollapsed = loadResult.State.IsIwadSectionCollapsed;
+        IsModSectionCollapsed = loadResult.State.IsModSectionCollapsed;
 
         var storeSanitized = _store.RemoveMissingPaths();
         var selectedProfileSanitized = InitializeSelectedProfile(loadResult.State.SelectedProfileId);
@@ -176,6 +182,69 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool HasPendingDeleteConfirmation => !string.IsNullOrWhiteSpace(_pendingDeleteProfileId);
 
+    public bool IsSourcePortSectionCollapsed
+    {
+        get => _isSourcePortSectionCollapsed;
+        private set
+        {
+            if (_isSourcePortSectionCollapsed == value)
+            {
+                return;
+            }
+
+            _isSourcePortSectionCollapsed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AreSourcePortRowsVisible));
+            OnPropertyChanged(nameof(SourcePortSectionToggleText));
+        }
+    }
+
+    public bool AreSourcePortRowsVisible => !IsSourcePortSectionCollapsed;
+
+    public string SourcePortSectionToggleText => IsSourcePortSectionCollapsed ? "Expand" : "Collapse";
+
+    public bool IsIwadSectionCollapsed
+    {
+        get => _isIwadSectionCollapsed;
+        private set
+        {
+            if (_isIwadSectionCollapsed == value)
+            {
+                return;
+            }
+
+            _isIwadSectionCollapsed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AreIwadRowsVisible));
+            OnPropertyChanged(nameof(IwadSectionToggleText));
+        }
+    }
+
+    public bool AreIwadRowsVisible => !IsIwadSectionCollapsed;
+
+    public string IwadSectionToggleText => IsIwadSectionCollapsed ? "Expand" : "Collapse";
+
+    public bool IsModSectionCollapsed
+    {
+        get => _isModSectionCollapsed;
+        private set
+        {
+            if (_isModSectionCollapsed == value)
+            {
+                return;
+            }
+
+            _isModSectionCollapsed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AreModRowsVisible));
+            OnPropertyChanged(nameof(ModSectionToggleText));
+        }
+    }
+
+    public bool AreModRowsVisible => !IsModSectionCollapsed;
+
+    public string ModSectionToggleText => IsModSectionCollapsed ? "Expand" : "Collapse";
+
     public string SelectedProfileName => GetSelectedProfile()?.Name ?? "No Profile Selected";
 
     public string SelectedProfileStatusText
@@ -227,6 +296,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         PersistState();
     }
 
+    public void ToggleSourcePortSectionCollapsed()
+    {
+        IsSourcePortSectionCollapsed = !IsSourcePortSectionCollapsed;
+        PersistState();
+    }
+
     public void ClearSourcePort()
     {
         ClearAllSourcePorts();
@@ -264,11 +339,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         PersistState();
     }
 
+    public void ToggleIwadSectionCollapsed()
+    {
+        IsIwadSectionCollapsed = !IsIwadSectionCollapsed;
+        PersistState();
+    }
+
     public void ClearAllMods()
     {
         _store.ClearMods();
         ClearPendingDeleteConfirmation();
         RefreshFromStore();
+        PersistState();
+    }
+
+    public void ToggleModSectionCollapsed()
+    {
+        IsModSectionCollapsed = !IsModSectionCollapsed;
         PersistState();
     }
 
@@ -1060,9 +1147,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             SourcePorts = [.. snapshot.SourcePorts],
             Profiles = [.. _profiles.Select(CloneProfile)],
             SelectedProfileId = SelectedProfileId,
+            IsSourcePortSectionCollapsed = IsSourcePortSectionCollapsed,
             SelectedSourcePortPath = null,
             Iwads = [.. snapshot.Iwads],
+            IsIwadSectionCollapsed = IsIwadSectionCollapsed,
             Mods = [.. snapshot.Mods],
+            IsModSectionCollapsed = IsModSectionCollapsed,
             SelectedIwadPath = null,
             SelectedModPaths = []
         };

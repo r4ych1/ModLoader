@@ -20,9 +20,12 @@ public sealed class JsonLaunchInputsPersistenceTests
         Assert.Empty(result.State.SourcePorts);
         Assert.Empty(result.State.Profiles);
         Assert.Null(result.State.SelectedProfileId);
+        Assert.False(result.State.IsSourcePortSectionCollapsed);
         Assert.Null(result.State.SelectedSourcePortPath);
         Assert.Empty(result.State.Iwads);
+        Assert.False(result.State.IsIwadSectionCollapsed);
         Assert.Empty(result.State.Mods);
+        Assert.False(result.State.IsModSectionCollapsed);
         Assert.Null(result.State.SelectedIwadPath);
         Assert.Empty(result.State.SelectedModPaths);
     }
@@ -49,9 +52,12 @@ public sealed class JsonLaunchInputsPersistenceTests
                 }
             ],
             SelectedProfileId = "p1",
+            IsSourcePortSectionCollapsed = true,
             SelectedSourcePortPath = null,
             Iwads = [Path.Combine(temp.Path, "doom.wad"), Path.Combine(temp.Path, "doom2.wad")],
+            IsIwadSectionCollapsed = false,
             Mods = [Path.Combine(temp.Path, "mod-a.pk3"), Path.Combine(temp.Path, "mod-b.pk3")],
+            IsModSectionCollapsed = true,
             SelectedIwadPath = null,
             SelectedModPaths = []
         };
@@ -61,8 +67,11 @@ public sealed class JsonLaunchInputsPersistenceTests
 
         Assert.Equal(state.SourcePorts, result.State.SourcePorts);
         Assert.Equal(state.SelectedProfileId, result.State.SelectedProfileId);
+        Assert.Equal(state.IsSourcePortSectionCollapsed, result.State.IsSourcePortSectionCollapsed);
         Assert.Equal(state.Iwads, result.State.Iwads);
+        Assert.Equal(state.IsIwadSectionCollapsed, result.State.IsIwadSectionCollapsed);
         Assert.Equal(state.Mods, result.State.Mods);
+        Assert.Equal(state.IsModSectionCollapsed, result.State.IsModSectionCollapsed);
         Assert.Single(result.State.Profiles);
         Assert.Equal("p1", result.State.Profiles[0].Id);
         Assert.Equal("Profile 1", result.State.Profiles[0].Name);
@@ -97,6 +106,35 @@ public sealed class JsonLaunchInputsPersistenceTests
         Assert.Equal(legacySourcePort, result.State.SelectedSourcePortPath);
         Assert.Empty(result.State.Profiles);
         Assert.Null(result.State.SelectedProfileId);
+        Assert.False(result.State.IsSourcePortSectionCollapsed);
+        Assert.False(result.State.IsIwadSectionCollapsed);
+        Assert.False(result.State.IsModSectionCollapsed);
+    }
+
+    [Fact]
+    public void Load_ConfigWithoutCollapseFields_DefaultsAllSectionsToExpanded()
+    {
+        using var temp = new TempDirectory();
+        var configPath = Path.Combine(temp.Path, "modloader.config.json");
+        var configJson = JsonSerializer.Serialize(new
+        {
+            SourcePorts = new[] { Path.Combine(temp.Path, "gzdoom.exe") },
+            Profiles = Array.Empty<object>(),
+            SelectedProfileId = (string?)null,
+            SelectedSourcePortPath = (string?)null,
+            Iwads = Array.Empty<string>(),
+            Mods = Array.Empty<string>(),
+            SelectedIwadPath = (string?)null,
+            SelectedModPaths = Array.Empty<string>()
+        });
+        File.WriteAllText(configPath, configJson);
+
+        var persistence = new JsonLaunchInputsPersistence(configPath);
+        var result = persistence.Load();
+
+        Assert.False(result.State.IsSourcePortSectionCollapsed);
+        Assert.False(result.State.IsIwadSectionCollapsed);
+        Assert.False(result.State.IsModSectionCollapsed);
     }
 
     [Fact]
@@ -115,9 +153,12 @@ public sealed class JsonLaunchInputsPersistenceTests
         Assert.Empty(result.State.SourcePorts);
         Assert.Empty(result.State.Profiles);
         Assert.Null(result.State.SelectedProfileId);
+        Assert.False(result.State.IsSourcePortSectionCollapsed);
         Assert.Null(result.State.SelectedSourcePortPath);
         Assert.Empty(result.State.Iwads);
+        Assert.False(result.State.IsIwadSectionCollapsed);
         Assert.Empty(result.State.Mods);
+        Assert.False(result.State.IsModSectionCollapsed);
         Assert.Null(result.State.SelectedIwadPath);
         Assert.Empty(result.State.SelectedModPaths);
 
@@ -131,9 +172,12 @@ public sealed class JsonLaunchInputsPersistenceTests
         Assert.Empty(replacementState.SourcePorts);
         Assert.Empty(replacementState.Profiles);
         Assert.Null(replacementState.SelectedProfileId);
+        Assert.False(replacementState.IsSourcePortSectionCollapsed);
         Assert.Null(replacementState.SelectedSourcePortPath);
         Assert.Empty(replacementState.Iwads);
+        Assert.False(replacementState.IsIwadSectionCollapsed);
         Assert.Empty(replacementState.Mods);
+        Assert.False(replacementState.IsModSectionCollapsed);
         Assert.Null(replacementState.SelectedIwadPath);
         Assert.Empty(replacementState.SelectedModPaths);
     }
