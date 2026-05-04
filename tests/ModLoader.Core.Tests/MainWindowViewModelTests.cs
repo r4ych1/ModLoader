@@ -117,6 +117,9 @@ public sealed class MainWindowViewModelTests
         var persistence = new RecordingPersistence();
         var viewModel = new MainWindowViewModel(persistence);
 
+        Assert.False(viewModel.IsFileLibraryPaneCollapsed);
+        Assert.True(viewModel.IsFileLibraryPaneExpanded);
+        Assert.Equal("Collapse", viewModel.FileLibraryPaneToggleText);
         Assert.True(viewModel.AreSourcePortRowsVisible);
         Assert.Equal("Collapse", viewModel.SourcePortSectionToggleText);
         Assert.True(viewModel.AreIwadRowsVisible);
@@ -128,6 +131,11 @@ public sealed class MainWindowViewModelTests
         viewModel.ToggleIwadSectionCollapsed();
         viewModel.ToggleModSectionCollapsed();
 
+        viewModel.ToggleFileLibraryPaneCollapsed();
+
+        Assert.True(viewModel.IsFileLibraryPaneCollapsed);
+        Assert.False(viewModel.IsFileLibraryPaneExpanded);
+        Assert.Equal("Expand", viewModel.FileLibraryPaneToggleText);
         Assert.True(viewModel.IsSourcePortSectionCollapsed);
         Assert.False(viewModel.AreSourcePortRowsVisible);
         Assert.Equal("Expand", viewModel.SourcePortSectionToggleText);
@@ -138,6 +146,7 @@ public sealed class MainWindowViewModelTests
         Assert.False(viewModel.AreModRowsVisible);
         Assert.Equal("Expand", viewModel.ModSectionToggleText);
 
+        Assert.True(persistence.SavedStates.Last().IsFileLibraryPaneCollapsed);
         Assert.True(persistence.SavedStates.Last().IsSourcePortSectionCollapsed);
         Assert.True(persistence.SavedStates.Last().IsIwadSectionCollapsed);
         Assert.True(persistence.SavedStates.Last().IsModSectionCollapsed);
@@ -152,6 +161,7 @@ public sealed class MainWindowViewModelTests
             {
                 State = new LaunchInputsConfig
                 {
+                    IsFileLibraryPaneCollapsed = true,
                     IsSourcePortSectionCollapsed = true,
                     IsIwadSectionCollapsed = false,
                     IsModSectionCollapsed = true
@@ -161,6 +171,9 @@ public sealed class MainWindowViewModelTests
 
         var viewModel = new MainWindowViewModel(persistence);
 
+        Assert.True(viewModel.IsFileLibraryPaneCollapsed);
+        Assert.False(viewModel.IsFileLibraryPaneExpanded);
+        Assert.Equal("Expand", viewModel.FileLibraryPaneToggleText);
         Assert.True(viewModel.IsSourcePortSectionCollapsed);
         Assert.False(viewModel.AreSourcePortRowsVisible);
         Assert.Equal("Expand", viewModel.SourcePortSectionToggleText);
@@ -170,6 +183,41 @@ public sealed class MainWindowViewModelTests
         Assert.True(viewModel.IsModSectionCollapsed);
         Assert.False(viewModel.AreModRowsVisible);
         Assert.Equal("Expand", viewModel.ModSectionToggleText);
+    }
+
+    [Fact]
+    public void ToggleFileLibraryPaneCollapse_DoesNotChangeProfileSelectionsOrLaunchState()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var iwad = temp.CreateFile("doom2.wad");
+        var mod = temp.CreateFile("mod-a.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source],
+                    Iwads = [iwad],
+                    Mods = [mod],
+                    Profiles = [CreateProfile("p1", "Profile 1", source, iwad, mod)],
+                    SelectedProfileId = "p1"
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.ToggleFileLibraryPaneCollapsed();
+
+        Assert.Equal("Profile 1", viewModel.SelectedProfileName);
+        Assert.Equal(Path.GetFullPath(source), viewModel.SelectedSourcePortPath);
+        Assert.Equal(Path.GetFullPath(iwad), viewModel.SelectedIwadPath);
+        Assert.Equal([Path.GetFullPath(mod)], viewModel.SelectedModPaths);
+        Assert.True(viewModel.CanLaunch);
+        Assert.True(viewModel.IsFileLibraryPaneCollapsed);
     }
 
     [Fact]
@@ -201,6 +249,7 @@ public sealed class MainWindowViewModelTests
         Assert.Null(viewModel.SelectedIwadPath);
         Assert.Null(persistence.SavedStates.Last().Profiles.Single().IwadPath);
         Assert.True(viewModel.ProfileRows.Single().IsInvalid);
+        Assert.False(viewModel.ProfileRows.Single().CanLaunchProfile);
     }
 
     [Fact]
@@ -595,6 +644,59 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void LaunchProfile_WhenValidAndUnselected_SelectsProfileAndUsesThatProfilesArguments()
+    {
+        using var temp = new TempDirectory();
+        var source1 = temp.CreateFile("gzdoom.exe");
+        var source2 = temp.CreateFile("vkdoom.exe");
+        var iwad1 = temp.CreateFile("doom.wad");
+        var iwad2 = temp.CreateFile("doom2.wad");
+        var mod1 = temp.CreateFile("mod-a.pk3");
+        var mod2 = temp.CreateFile("mod-b.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source1, source2],
+                    Iwads = [iwad1, iwad2],
+                    Mods = [mod1, mod2],
+                    Profiles =
+                    [
+                        CreateProfile("p1", "Profile 1", source1, iwad1, mod1),
+                        CreateProfile("p2", "Profile 2", source2, iwad2, mod2)
+                    ],
+                    SelectedProfileId = "p1"
+                }
+            }
+        };
+
+        var launcher = new RecordingLauncher();
+        var viewModel = new MainWindowViewModel(persistence, launcher);
+
+        viewModel.LaunchProfile("p2");
+
+        Assert.Equal("p2", viewModel.SelectedProfileId);
+        Assert.Equal("Profile 2", viewModel.SelectedProfileName);
+        Assert.Equal(Path.GetFullPath(source2), viewModel.SelectedSourcePortPath);
+        Assert.Equal(Path.GetFullPath(iwad2), viewModel.SelectedIwadPath);
+        Assert.Equal([Path.GetFullPath(mod2)], viewModel.SelectedModPaths);
+        Assert.Equal("p2", persistence.SavedStates.Last().SelectedProfileId);
+        Assert.Equal(1, launcher.LaunchCallCount);
+        Assert.Equal(Path.GetFullPath(source2), launcher.LastExecutablePath);
+        Assert.Equal(
+            [
+                "-iwad",
+                Path.GetFullPath(iwad2),
+                "-file",
+                Path.GetFullPath(mod2)
+            ],
+            launcher.LastArguments);
+    }
+
+    [Fact]
     public void LaunchSourcePort_WhenSelectedProfileValid_UsesProfileArguments()
     {
         using var temp = new TempDirectory();
@@ -638,6 +740,56 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void LaunchProfile_WhenTargetProfileInvalid_DoesNotInvokeLauncher()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var missingIwad = Path.Combine(temp.Path, "missing.wad");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source],
+                    Profiles = [CreateProfile("p1", "Profile 1", source, missingIwad)]
+                }
+            }
+        };
+
+        var launcher = new RecordingLauncher();
+        var viewModel = new MainWindowViewModel(persistence, launcher);
+
+        var row = viewModel.ProfileRows.Single();
+        Assert.True(row.IsInvalid);
+        Assert.False(row.CanLaunchProfile);
+
+        viewModel.LaunchProfile("p1");
+
+        Assert.Equal("p1", viewModel.SelectedProfileId);
+        Assert.Equal(0, launcher.LaunchCallCount);
+    }
+
+    [Fact]
+    public void MainWindowXaml_UsesProfileRowLaunchButtonInsteadOfHeaderLaunchButton()
+    {
+        var xamlPath = GetRepoFilePath("src", "ModLoader.App", "MainWindow.axaml");
+        var xaml = File.ReadAllText(xamlPath);
+
+        Assert.DoesNotContain("Click=\"OnLaunchClicked\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"OnLaunchProfileClicked\"", xaml, StringComparison.Ordinal);
+
+        var launchIndex = xaml.IndexOf("Content=\"Launch\"", StringComparison.Ordinal);
+        var renameIndex = xaml.IndexOf("Content=\"Rename\"", StringComparison.Ordinal);
+        var deleteIndex = xaml.IndexOf("Content=\"Delete\"", StringComparison.Ordinal);
+
+        Assert.True(launchIndex >= 0);
+        Assert.True(renameIndex > launchIndex);
+        Assert.True(deleteIndex > renameIndex);
+    }
+
+    [Fact]
     public void Constructor_WithLegacySelectionStateAndNoProfiles_StartsDetachedAndDisabled()
     {
         using var temp = new TempDirectory();
@@ -670,6 +822,11 @@ public sealed class MainWindowViewModelTests
         Assert.Empty(viewModel.SelectedModPaths);
         Assert.False(viewModel.CanLaunch);
         Assert.Equal(string.Empty, viewModel.CommandPreviewArguments);
+    }
+
+    private static string GetRepoFilePath(params string[] relativeParts)
+    {
+        return Path.GetFullPath(Path.Combine([AppContext.BaseDirectory, "..", "..", "..", "..", .. relativeParts]));
     }
 
     private static ProfileConfig CreateProfile(string id, string name, string? sourcePortPath, string? iwadPath, params string[] selectedModPaths)
@@ -709,6 +866,7 @@ internal sealed class RecordingPersistence : ILaunchInputsPersistence
             SourcePorts = [.. config.SourcePorts],
             Profiles = [.. config.Profiles.Select(CloneProfile)],
             SelectedProfileId = config.SelectedProfileId,
+            IsFileLibraryPaneCollapsed = config.IsFileLibraryPaneCollapsed,
             IsSourcePortSectionCollapsed = config.IsSourcePortSectionCollapsed,
             SelectedSourcePortPath = config.SelectedSourcePortPath,
             Iwads = [.. config.Iwads],

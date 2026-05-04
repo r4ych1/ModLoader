@@ -3,15 +3,17 @@
 ## Goal
 Introduce saved launch profiles as the primary launch model by converting the current screen into a two-pane workspace: saved profiles on the left and the shared Source Port / IWAD / Mod library on the right.
 
+Feature 009 later adds pane-level collapse for the right-side file library. Feature 008 remains authoritative for the expanded file-library workspace behavior.
+
 ## In Scope
 - Saved profile list with single-select toggle behavior.
 - Profile creation from current valid library selections using generated default names from the right-pane library header area.
+- Row-scoped launch actions for saved profiles.
 - Inline profile rename initiated by an explicit row action.
 - Profile delete with confirmation.
 - Immediate profile auto-save when editing a selected profile through library selection changes.
 - Persisted `Profiles` and `SelectedProfileId`.
 - Profile validity computation based on required launch inputs plus library membership and file existence.
-- Launch gating based on selected valid saved profile only.
 - Backward-compatible load of existing library lists without auto-migrating a profile from legacy selected fields.
 
 ## Out Of Scope
@@ -49,6 +51,7 @@ Introduce saved launch profiles as the primary launch model by converting the cu
 - Left pane shows:
   - saved profile rows
   - invalid-state indicators
+  - launch access
   - rename access
   - delete access
 - Profile rows are single-select toggle rows:
@@ -59,8 +62,19 @@ Introduce saved launch profiles as the primary launch model by converting the cu
 - Unselecting a profile:
   - sets `SelectedProfileId` to `null`
   - clears current Source Port / IWAD / Mod selections
-  - disables Launch
+  - leaves no launchable selected profile
 - Double-clicking a profile row has no special behavior beyond the existing row-selection interaction model.
+
+### Profile Launch
+- Each profile row exposes a `Launch` action immediately to the left of `Rename`.
+- Row `Launch` is available only while the row is in normal display mode.
+- Row `Launch` is enabled only when that row's profile is valid.
+- Activating `Launch` for a row:
+  - selects that profile
+  - hydrates current Source Port / IWAD / Mod selections from that profile
+  - launches that profile through the existing launcher flow
+- Row `Launch` does not require the profile to already be selected.
+- Invalid profiles remain listed and selectable but their row `Launch` action is disabled.
 
 ### Profile Creation
 - `New Profile` is enabled only when current library selections contain:
@@ -79,7 +93,7 @@ Introduce saved launch profiles as the primary launch model by converting the cu
 - When a profile is selected, editing Source Port / IWAD / Mod selections changes that selected profile immediately and persists after each change.
 - Auto-save includes transitions into invalid state.
 - There is no Save, Save As, dirty state, unsaved-changes prompt, or separate profile-name field.
-- Each profile row exposes a `Rename` action immediately to the left of `Delete`.
+- Each profile row exposes `Launch`, `Rename`, and `Delete` actions in that order.
 - Profile rename is available only by the row `Rename` action opening inline rename mode for that row.
 - Activating `Rename` selects that profile before opening inline rename mode.
 - Rename commit behavior:
@@ -122,11 +136,9 @@ Introduce saved launch profiles as the primary launch model by converting the cu
   - remain renameable
   - remain editable through the shared library
   - remain auto-saveable
-  - are not launchable
-- Launch is enabled only when:
-  - a saved profile is currently selected
-  - that selected profile is valid
-- No selected profile always disables Launch, even if current detached library selections are otherwise launch-valid.
+  - are not launchable from their row action
+- Launch is available only through saved profile rows.
+- No selected profile means no currently selected launchable profile, even if current detached library selections are otherwise launch-valid.
 
 ### Mod Ordering Context
 - Mod row ordering is derived UI state and does not rewrite the shared library collection order during selection toggles.
@@ -182,7 +194,14 @@ Then current Source Port / IWAD / Mod selections hydrate from that profile.
 And when the selected row is selected again
 Then `SelectedProfileId` becomes `null`.
 And current Source Port / IWAD / Mod selections are cleared.
-And Launch is disabled.
+And no profile remains selected for launch.
+
+### Launch profile from row action
+Given a valid saved profile row exists and a different profile or no profile is currently selected
+When `Launch` is activated for that row
+Then that row's profile becomes the selected profile.
+And current Source Port / IWAD / Mod selections hydrate from that profile.
+And launch executes for that profile's saved Source Port, IWAD, and ordered Mods.
 
 ### Edit selected profile through library
 Given a saved profile is selected
@@ -233,7 +252,7 @@ Given a saved profile references a library item that is removed or a file path t
 When validity is recomputed
 Then the profile remains saved and listed.
 And it is marked invalid with an explicit reason.
-And Launch is disabled while that profile is selected.
+And its row `Launch` action is disabled.
 And changing library selections while it is selected can repair it and restore launchability.
 
 ### Mod ordering by profile context
@@ -250,4 +269,4 @@ Then the shared library lists are preserved.
 And zero profiles are loaded.
 And no profile is selected.
 And current library selections start cleared.
-And Launch is disabled.
+And no profile is launchable until a saved profile exists.

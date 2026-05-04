@@ -74,6 +74,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnLaunchProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string profileId)
+        {
+            _viewModel.LaunchProfile(profileId);
+        }
+    }
+
     private void OnConfirmDeleteProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel.ConfirmDeleteProfile();
@@ -82,6 +90,11 @@ public partial class MainWindow : Window
     private void OnCancelDeleteProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _viewModel.CancelDeleteConfirmation();
+    }
+
+    private void OnToggleFileLibraryPaneCollapsedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.ToggleFileLibraryPaneCollapsed();
     }
 
     private void OnToggleSourcePortSectionCollapsedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -233,11 +246,6 @@ public partial class MainWindow : Window
             _viewModel.ToggleModSelection(path);
             e.Handled = true;
         }
-    }
-
-    private void OnLaunchClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        _viewModel.LaunchSourcePort();
     }
 
     private static bool HasFilePayload(DragEventArgs e)

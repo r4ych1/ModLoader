@@ -25,8 +25,9 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
   - Adds generated launch-argument preview (`-iwad`, `-file`) using filenames-only with wrapped footer display, and derives Mod display ordering from current selected-mod sequence instead of persisting shared-library reorders.
   - Authoritative spec: `Features/004-fixed-command-preview-and-selection-order.md`.
 - Feature 005: Fixed header and launch execution.
-  - Adds a fixed top header with title/label and right-aligned launch action.
-  - Executes source port with generated full-path `-iwad` / `-file` arguments from current selection state.
+  - Adds the fixed top header shell used by later workspace features.
+  - Defines launch execution using generated full-path `-iwad` / `-file` arguments from current selection state.
+  - Later profile-based features are authoritative for where launch is triggered in the UI.
   - Authoritative spec: `Features/005-fixed-header-and-launch-execution.md`.
 - Feature 006: Section collapse layout and row interaction states.
   - Aligns Source Port/IWAD/Mod section headers with inline collapse actions and row-level `Remove` actions using shared right-hand action-column layout patterns.
@@ -40,9 +41,14 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
 - Feature 008: Selection-based profile workspace.
   - Adds saved profiles as the primary launch model in a two-pane workspace: a pinned profile list on the left and independently scrolling shared file library on the right, with `New Profile` in the right-pane library header.
   - Profiles persist source port, IWAD, and ordered mod references to the shared library and are the only launchable unit.
-  - Profile rows expose explicit `Rename` and `Delete` actions instead of double-click rename, and outside-click rename exit cancels rather than saves.
-  - Profile edits auto-save immediately through file-library selection changes; launch requires a selected valid saved profile.
+  - Profile rows expose explicit `Launch`, `Rename`, and `Delete` actions instead of double-click rename, and outside-click rename exit cancels rather than saves.
+  - Profile edits auto-save immediately through file-library selection changes; row launch actions select and run that specific valid saved profile.
   - Authoritative spec: `Features/008-profile-management.md`.
+- Feature 009: Collapsible file library pane.
+  - Wraps the shared file library in its own right-side section with a pane-level collapse control.
+  - Collapsing the file library reduces it to a narrow right-edge strip that preserves an expand affordance and label while the left profile pane expands to fill the remaining workspace width.
+  - File-library pane collapse state persists across restart without changing profile, launch, or inner library-section behavior.
+  - Authoritative spec: `Features/009-file-library-pane-collapse.md`.
 
 ## Scope Boundary For Feature 001
 Feature 001 provides in-memory state management and UI interactions only. It does not include:

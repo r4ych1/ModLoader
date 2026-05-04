@@ -10,6 +10,8 @@ public sealed class LaunchInputsConfig
 
     public string? SelectedProfileId { get; init; }
 
+    public bool IsFileLibraryPaneCollapsed { get; init; }
+
     public bool IsSourcePortSectionCollapsed { get; init; }
 
     public string? SelectedSourcePortPath { get; init; }

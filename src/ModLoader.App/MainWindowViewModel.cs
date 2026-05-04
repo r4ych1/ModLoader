@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Avalonia.Controls;
 using ModLoader.Core;
 
 namespace ModLoader.App;
@@ -13,6 +14,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly ILaunchInputsPersistence _persistence;
     private readonly LaunchInputsStore _store;
     private readonly List<ProfileConfig> _profiles = [];
+    private bool _isFileLibraryPaneCollapsed;
     private bool _isIwadSectionCollapsed;
     private bool _isModSectionCollapsed;
     private bool _isSourcePortSectionCollapsed;
@@ -44,6 +46,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var loadResult = _persistence.Load();
         _store = new LaunchInputsStore(loadResult.State);
         LoadProfilesFromConfig(loadResult.State);
+        IsFileLibraryPaneCollapsed = loadResult.State.IsFileLibraryPaneCollapsed;
         IsSourcePortSectionCollapsed = loadResult.State.IsSourcePortSectionCollapsed;
         IsIwadSectionCollapsed = loadResult.State.IsIwadSectionCollapsed;
         IsModSectionCollapsed = loadResult.State.IsModSectionCollapsed;
@@ -186,6 +189,37 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool HasPendingDeleteConfirmation => !string.IsNullOrWhiteSpace(_pendingDeleteProfileId);
 
+    public bool IsFileLibraryPaneCollapsed
+    {
+        get => _isFileLibraryPaneCollapsed;
+        private set
+        {
+            if (_isFileLibraryPaneCollapsed == value)
+            {
+                return;
+            }
+
+            _isFileLibraryPaneCollapsed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsFileLibraryPaneExpanded));
+            OnPropertyChanged(nameof(FileLibraryPaneToggleText));
+            OnPropertyChanged(nameof(ProfilePaneColumnWidth));
+            OnPropertyChanged(nameof(FileLibraryPaneColumnWidth));
+        }
+    }
+
+    public bool IsFileLibraryPaneExpanded => !IsFileLibraryPaneCollapsed;
+
+    public string FileLibraryPaneToggleText => IsFileLibraryPaneCollapsed ? "Expand" : "Collapse";
+
+    public GridLength ProfilePaneColumnWidth => IsFileLibraryPaneCollapsed
+        ? new GridLength(1, GridUnitType.Star)
+        : new GridLength(320);
+
+    public GridLength FileLibraryPaneColumnWidth => IsFileLibraryPaneCollapsed
+        ? new GridLength(92)
+        : new GridLength(1, GridUnitType.Star);
+
     public bool IsSourcePortSectionCollapsed
     {
         get => _isSourcePortSectionCollapsed;
@@ -295,6 +329,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void ToggleSourcePortSectionCollapsed()
     {
         IsSourcePortSectionCollapsed = !IsSourcePortSectionCollapsed;
+        PersistState();
+    }
+
+    public void ToggleFileLibraryPaneCollapsed()
+    {
+        IsFileLibraryPaneCollapsed = !IsFileLibraryPaneCollapsed;
         PersistState();
     }
 
@@ -615,6 +655,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         ClearPendingDeleteConfirmation();
     }
 
+    public void LaunchProfile(string profileId)
+    {
+        CancelRename();
+
+        if (!TrySelectProfile(profileId))
+        {
+            return;
+        }
+
+        ClearPendingDeleteConfirmation();
+        HydrateSelectionsFromSelectedProfile();
+        RefreshRows();
+        RefreshProfileRows();
+        OnPropertyChanged(nameof(CanLaunch));
+        OnPropertyChanged(nameof(SelectedProfileStatusText));
+        PersistState();
+        LaunchSourcePort();
+    }
+
     public void LaunchSourcePort()
     {
         var selectedProfile = GetSelectedProfile();
@@ -702,6 +761,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             row.Name = profile.Name;
             row.IsSelected = string.Equals(profile.Id, SelectedProfileId, StringComparison.Ordinal);
             row.IsInvalid = !validity.IsValid;
+            row.CanLaunchProfile = validity.IsValid;
             row.InvalidReason = validity.Reason;
 
             if (!row.IsRenaming)
@@ -1147,6 +1207,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             SourcePorts = [.. snapshot.SourcePorts],
             Profiles = [.. _profiles.Select(CloneProfile)],
             SelectedProfileId = SelectedProfileId,
+            IsFileLibraryPaneCollapsed = IsFileLibraryPaneCollapsed,
             IsSourcePortSectionCollapsed = IsSourcePortSectionCollapsed,
             SelectedSourcePortPath = null,
             Iwads = [.. snapshot.Iwads],
@@ -1220,6 +1281,7 @@ public sealed class SelectablePathRow
 
 public sealed class ProfileListItem : INotifyPropertyChanged
 {
+    private bool _canLaunchProfile;
     private bool _isInvalid;
     private bool _isRenaming;
     private bool _isSelected;
@@ -1265,6 +1327,21 @@ public sealed class ProfileListItem : INotifyPropertyChanged
             }
 
             _isSelected = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool CanLaunchProfile
+    {
+        get => _canLaunchProfile;
+        set
+        {
+            if (_canLaunchProfile == value)
+            {
+                return;
+            }
+
+            _canLaunchProfile = value;
             OnPropertyChanged();
         }
     }
