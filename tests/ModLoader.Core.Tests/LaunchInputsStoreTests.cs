@@ -205,47 +205,4 @@ public sealed class LaunchInputsStoreTests
         Assert.Equal([Path.GetFullPath(existingMod)], store.Mods.ToArray());
     }
 
-    [Fact]
-    public void ReorderModsBySelectionSequence_SelectedModsMoveToTopInSelectionOrder()
-    {
-        using var temp = new TempDirectory();
-        var modA = temp.CreateFile("a.pk3");
-        var modB = temp.CreateFile("b.pk3");
-        var modC = temp.CreateFile("c.pk3");
-        var modD = temp.CreateFile("d.pk3");
-
-        var store = new LaunchInputsStore(new LaunchInputsConfig
-        {
-            Mods = [modA, modB, modC, modD]
-        });
-
-        var changed = store.ReorderModsBySelectionSequence([modC, modA]);
-
-        Assert.True(changed);
-        Assert.Equal(
-            [Path.GetFullPath(modC), Path.GetFullPath(modA), Path.GetFullPath(modB), Path.GetFullPath(modD)],
-            store.Mods.ToArray());
-    }
-
-    [Fact]
-    public void ReorderModsBySelectionSequence_IgnoresMissingOrDuplicateSelections()
-    {
-        using var temp = new TempDirectory();
-        var modA = temp.CreateFile("a.pk3");
-        var modB = temp.CreateFile("b.pk3");
-        var modC = temp.CreateFile("c.pk3");
-        var missing = Path.Combine(temp.Path, "missing.pk3");
-
-        var store = new LaunchInputsStore(new LaunchInputsConfig
-        {
-            Mods = [modA, modB, modC]
-        });
-
-        var changed = store.ReorderModsBySelectionSequence([missing, modB, modB.ToUpperInvariant()]);
-
-        Assert.True(changed);
-        Assert.Equal(
-            [Path.GetFullPath(modB), Path.GetFullPath(modA), Path.GetFullPath(modC)],
-            store.Mods.ToArray());
-    }
 }

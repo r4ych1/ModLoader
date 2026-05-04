@@ -92,6 +92,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool HasSelectedProfile => !string.IsNullOrWhiteSpace(SelectedProfileId);
 
+    public bool HasActiveProfileRename => ProfileRows.Any(row => row.IsRenaming);
+
+    public string? RenamingProfileId => ProfileRows.FirstOrDefault(row => row.IsRenaming)?.Id;
+
     public bool CanCreateProfile => !string.IsNullOrWhiteSpace(SelectedSourcePortPath) && !string.IsNullOrWhiteSpace(SelectedIwadPath);
 
     public bool CanLaunch
@@ -288,23 +292,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         PersistState();
     }
 
-    public void ClearAllSourcePorts()
-    {
-        _store.ClearSourcePorts();
-        ClearPendingDeleteConfirmation();
-        RefreshFromStore();
-        PersistState();
-    }
-
     public void ToggleSourcePortSectionCollapsed()
     {
         IsSourcePortSectionCollapsed = !IsSourcePortSectionCollapsed;
         PersistState();
-    }
-
-    public void ClearSourcePort()
-    {
-        ClearAllSourcePorts();
     }
 
     public void RemoveSourcePort(string path)
@@ -331,25 +322,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         PersistState();
     }
 
-    public void ClearAllIwads()
-    {
-        _store.ClearIwads();
-        ClearPendingDeleteConfirmation();
-        RefreshFromStore();
-        PersistState();
-    }
-
     public void ToggleIwadSectionCollapsed()
     {
         IsIwadSectionCollapsed = !IsIwadSectionCollapsed;
-        PersistState();
-    }
-
-    public void ClearAllMods()
-    {
-        _store.ClearMods();
-        ClearPendingDeleteConfirmation();
-        RefreshFromStore();
         PersistState();
     }
 
@@ -415,12 +390,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         else
         {
             SelectedModPaths.Add(normalizedPath);
-        }
-
-        var modOrderSynchronized = ApplySelectionSynchronizedModOrdering();
-        if (modOrderSynchronized)
-        {
-            CopyCollection(_store.Mods, Mods);
         }
 
         ClearPendingDeleteConfirmation();
@@ -571,8 +540,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         PersistState();
     }
 
-    public void CancelRename()
+    public bool CancelRename()
     {
+        var canceledAny = false;
+
         foreach (var row in ProfileRows)
         {
             if (!row.IsRenaming)
@@ -580,9 +551,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 continue;
             }
 
+            canceledAny = true;
             row.IsRenaming = false;
             row.RenameText = row.Name;
         }
+
+        if (canceledAny)
+        {
+            ClearInformationalMessage();
+        }
+
+        return canceledAny;
     }
 
     public void RequestDeleteProfile(string profileId)
@@ -701,7 +680,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             path => string.Equals(path, SelectedIwadPath, StringComparison.OrdinalIgnoreCase));
 
         CopyRows(
-            Mods,
+            GetOrderedModPaths(),
             ModRows,
             path => FindPathIndex(SelectedModPaths, path) >= 0);
     }
@@ -1006,9 +985,30 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             : new ProfileValidity(false, string.Join(" ", reasons));
     }
 
-    private bool ApplySelectionSynchronizedModOrdering()
+    private IReadOnlyList<string> GetOrderedModPaths()
     {
-        return _store.ReorderModsBySelectionSequence(SelectedModPaths);
+        var orderedSelectedPaths = new List<string>();
+        var selectedPathSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var selectedModPath in SelectedModPaths)
+        {
+            if (!ContainsPath(Mods, selectedModPath))
+            {
+                continue;
+            }
+
+            if (selectedPathSet.Add(selectedModPath))
+            {
+                orderedSelectedPaths.Add(selectedModPath);
+            }
+        }
+
+        var orderedUnselectedPaths = Mods
+            .Where(path => !selectedPathSet.Contains(path))
+            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase);
+
+        return [.. orderedSelectedPaths, .. orderedUnselectedPaths];
     }
 
     private static bool ContainsPath(IEnumerable<string> candidates, string? path)

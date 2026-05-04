@@ -229,6 +229,149 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void DetachedModRows_DefaultToAlphabeticalFilenameOrder_AndTemporarilyReorderSelectedMods()
+    {
+        using var temp = new TempDirectory();
+        var modBeta = temp.CreateFile("beta.pk3");
+        var modGamma = temp.CreateFile("gamma.pk3");
+        var modAlpha = temp.CreateFile("alpha.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    Mods = [modBeta, modGamma, modAlpha]
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        Assert.Equal(
+            ["alpha.pk3", "beta.pk3", "gamma.pk3"],
+            viewModel.ModRows.Select(row => Path.GetFileName(row.Path)).ToArray());
+
+        viewModel.ToggleModSelection(modGamma);
+        viewModel.ToggleModSelection(modAlpha);
+
+        Assert.Equal(
+            ["gamma.pk3", "alpha.pk3", "beta.pk3"],
+            viewModel.ModRows.Select(row => Path.GetFileName(row.Path)).ToArray());
+        Assert.Equal(
+            [Path.GetFullPath(modBeta), Path.GetFullPath(modGamma), Path.GetFullPath(modAlpha)],
+            persistence.SavedStates.Last().Mods);
+    }
+
+    [Fact]
+    public void SelectedProfile_ModRowsUseProfileOrderFirst_AndAlphabeticalRemainder()
+    {
+        using var temp = new TempDirectory();
+        var modCharlie = temp.CreateFile("charlie.pk3");
+        var modAlpha = temp.CreateFile("alpha.pk3");
+        var modDelta = temp.CreateFile("delta.pk3");
+        var modBravo = temp.CreateFile("bravo.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    Mods = [modCharlie, modAlpha, modDelta, modBravo],
+                    Profiles = [CreateProfile("p1", "Profile 1", null, null, modDelta, modBravo)],
+                    SelectedProfileId = "p1"
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        Assert.Equal(
+            ["delta.pk3", "bravo.pk3", "alpha.pk3", "charlie.pk3"],
+            viewModel.ModRows.Select(row => Path.GetFileName(row.Path)).ToArray());
+    }
+
+    [Fact]
+    public void SwitchingProfiles_RecomputesDisplayedModOrderPerProfile()
+    {
+        using var temp = new TempDirectory();
+        var modCharlie = temp.CreateFile("charlie.pk3");
+        var modAlpha = temp.CreateFile("alpha.pk3");
+        var modDelta = temp.CreateFile("delta.pk3");
+        var modBravo = temp.CreateFile("bravo.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    Mods = [modCharlie, modAlpha, modDelta, modBravo],
+                    Profiles =
+                    [
+                        CreateProfile("p1", "Profile 1", null, null, modDelta, modBravo),
+                        CreateProfile("p2", "Profile 2", null, null, modAlpha, modCharlie)
+                    ]
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.ToggleProfileSelection("p1");
+        Assert.Equal(
+            ["delta.pk3", "bravo.pk3", "alpha.pk3", "charlie.pk3"],
+            viewModel.ModRows.Select(row => Path.GetFileName(row.Path)).ToArray());
+
+        viewModel.ToggleProfileSelection("p2");
+        Assert.Equal(
+            ["alpha.pk3", "charlie.pk3", "bravo.pk3", "delta.pk3"],
+            viewModel.ModRows.Select(row => Path.GetFileName(row.Path)).ToArray());
+    }
+
+    [Fact]
+    public void ToggleModSelection_WhenProfileSelected_PersistsProfileOrderWithoutRewritingSharedMods()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var iwad = temp.CreateFile("doom2.wad");
+        var modBeta = temp.CreateFile("beta.pk3");
+        var modGamma = temp.CreateFile("gamma.pk3");
+        var modAlpha = temp.CreateFile("alpha.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source],
+                    Iwads = [iwad],
+                    Mods = [modBeta, modGamma, modAlpha],
+                    Profiles = [CreateProfile("p1", "Profile 1", source, iwad, modGamma)],
+                    SelectedProfileId = "p1"
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.ToggleModSelection(modAlpha);
+
+        Assert.Equal(
+            [Path.GetFullPath(modGamma), Path.GetFullPath(modAlpha)],
+            persistence.SavedStates.Last().Profiles.Single().SelectedModPaths);
+        Assert.Equal(
+            [Path.GetFullPath(modBeta), Path.GetFullPath(modGamma), Path.GetFullPath(modAlpha)],
+            persistence.SavedStates.Last().Mods);
+        Assert.Equal(
+            ["gamma.pk3", "alpha.pk3", "beta.pk3"],
+            viewModel.ModRows.Select(row => Path.GetFileName(row.Path)).ToArray());
+    }
+
+    [Fact]
     public void DeleteSelectedProfile_ClearsSelectionAndCurrentSelections()
     {
         using var temp = new TempDirectory();
@@ -412,6 +555,43 @@ public sealed class MainWindowViewModelTests
         Assert.True(row.IsRenaming);
         Assert.Equal("Profile 1", row.Name);
         Assert.Equal("Profile name must be unique.", viewModel.MessageText);
+    }
+
+    [Fact]
+    public void CancelRename_RestoresSavedName_AndDoesNotPersistRename()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var iwad = temp.CreateFile("doom2.wad");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source],
+                    Iwads = [iwad],
+                    Profiles = [CreateProfile("p1", "Profile 1", source, iwad)]
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.BeginRenameProfile("p1");
+        var saveCallCountBeforeCancel = persistence.SaveCallCount;
+        var row = viewModel.ProfileRows.Single();
+        row.RenameText = "Ultra-Violence";
+
+        var canceled = viewModel.CancelRename();
+
+        Assert.True(canceled);
+        Assert.False(row.IsRenaming);
+        Assert.Equal("Profile 1", row.Name);
+        Assert.Equal("Profile 1", row.RenameText);
+        Assert.Equal(saveCallCountBeforeCancel, persistence.SaveCallCount);
+        Assert.Equal("Profile 1", persistence.SavedStates.Last().Profiles.Single().Name);
     }
 
     [Fact]

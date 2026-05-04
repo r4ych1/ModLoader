@@ -38,6 +38,8 @@ Introduce saved launch profiles as the primary launch model by converting the cu
 - The window becomes a two-pane workspace:
   - Left pane: profile management.
   - Right pane: the existing shared Source Port / IWAD / Mod library.
+- The left profile pane remains pinned while the right file-library pane scrolls independently.
+- The left profile list provides its own internal scrolling when saved profiles exceed available vertical space.
 - The right pane begins with a selected-profile header area that also contains the `New Profile` action.
 - `New Profile` is right-aligned within that header area and aligned with the selected profile name header.
 - The footer command preview remains visible and reflects current library selections, even when no profile is selected.
@@ -82,8 +84,9 @@ Introduce saved launch profiles as the primary launch model by converting the cu
 - Activating `Rename` selects that profile before opening inline rename mode.
 - Rename commit behavior:
   - `Enter` saves if valid.
-  - Clicking outside the rename input saves if valid.
+  - Clicking outside the rename input cancels rename and restores the prior saved name.
   - `Escape` cancels and restores the prior saved name.
+- The outside click that cancels rename is consumed and does not also activate the clicked row, button, or other control.
 - Rename validity rules:
   - name is required
   - name cannot be empty or whitespace-only
@@ -124,6 +127,18 @@ Introduce saved launch profiles as the primary launch model by converting the cu
   - a saved profile is currently selected
   - that selected profile is valid
 - No selected profile always disables Launch, even if current detached library selections are otherwise launch-valid.
+
+### Mod Ordering Context
+- Mod row ordering is derived UI state and does not rewrite the shared library collection order during selection toggles.
+- When no profile is selected:
+  - Mod rows default to alphabetical filename order
+  - selected Mods temporarily move to the top in detached selected sequence order
+  - remaining unselected Mods stay in alphabetical filename order
+  - detached selected-mod ordering is not restored on restart
+- When a profile is selected:
+  - selected Mods appear first in that profile's `SelectedModPaths` order
+  - remaining unselected Mods appear afterward in alphabetical filename order
+  - changing Mod selection persists only that selected profile's `SelectedModPaths`
 
 ### Persistence And Backward Compatibility
 - `LaunchInputsConfig` adds:
@@ -180,8 +195,9 @@ Given a saved profile row exists
 When `Rename` is activated for that row
 Then that profile becomes selected.
 And inline rename mode opens for that row.
-And `Enter` or outside click saves a valid unique non-empty name.
-And `Escape` restores the previous saved name.
+And `Enter` saves a valid unique non-empty name.
+And outside click or `Escape` restores the previous saved name.
+And the outside click does not also activate another control.
 
 ### New profile placement
 Given the workspace is rendered
@@ -196,6 +212,13 @@ When the entered name is empty, whitespace-only, or duplicates another profile n
 Then the saved name remains unchanged.
 And rename mode stays open.
 And a visible validation message is shown in the message area.
+
+### Pinned workspace panes
+Given the workspace is rendered
+When the file library content exceeds available vertical space
+Then the right pane scrolls independently.
+And the left profile pane remains pinned.
+And when the profile list exceeds available height, the profile list scrolls within the left pane.
 
 ### Delete selected profile
 Given a selected profile exists
@@ -212,6 +235,13 @@ Then the profile remains saved and listed.
 And it is marked invalid with an explicit reason.
 And Launch is disabled while that profile is selected.
 And changing library selections while it is selected can repair it and restore launchability.
+
+### Mod ordering by profile context
+Given at least three Mod rows and one or more profiles
+When no profile is selected
+Then Mod rows start in alphabetical filename order.
+And when Mods are selected, selected Mods move to the top in detached selected sequence order without changing restart state.
+And when a saved profile is selected, Mod rows are ordered by that profile's selected sequence first and alphabetical remainder second.
 
 ### Legacy startup without profiles
 Given an old config containing shared library lists and old top-level selected fields but no profiles

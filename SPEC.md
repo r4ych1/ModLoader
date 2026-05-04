@@ -22,15 +22,15 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
   - Includes persisted selection state for IWAD and Mod rows.
   - Authoritative spec: `Features/003-config-persistence-and-recovery.md`.
 - Feature 004: Fixed command preview footer and selection-synchronized mod ordering.
-  - Adds generated launch-argument preview (`-iwad`, `-file`) using filenames-only with wrapped footer display, and deterministic mod list reordering by selection sequence.
+  - Adds generated launch-argument preview (`-iwad`, `-file`) using filenames-only with wrapped footer display, and derives Mod display ordering from current selected-mod sequence instead of persisting shared-library reorders.
   - Authoritative spec: `Features/004-fixed-command-preview-and-selection-order.md`.
 - Feature 005: Fixed header and launch execution.
   - Adds a fixed top header with title/label and right-aligned launch action.
   - Executes source port with generated full-path `-iwad` / `-file` arguments from current selection state.
   - Authoritative spec: `Features/005-fixed-header-and-launch-execution.md`.
-- Feature 006: Row action alignment, section clear-all, and row interaction states.
-  - Aligns Source Port/IWAD/Mod section collapse and clear actions plus row-level `Remove` actions using a shared right-hand action-column layout pattern.
-  - Adds IWAD/Mod clear-all behavior and distinct row `hover`, `selected`, and `selected+hover` visuals for light/dark themes.
+- Feature 006: Section collapse layout and row interaction states.
+  - Aligns Source Port/IWAD/Mod section headers with inline collapse actions and row-level `Remove` actions using shared right-hand action-column layout patterns.
+  - Adds whole-section collapse behavior plus distinct row `hover`, `selected`, and `selected+hover` visuals for light/dark themes.
   - Authoritative spec: `Features/006-row-actions-clear-all-and-row-states.md`.
 - Feature 007: Source-port list parity and Mod `.zip` support.
   - Replaces single active source-port behavior with ordered source-port list behavior and single-select source-port row state.
@@ -38,9 +38,9 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
   - Updates command preview to include selected source-port filename before `-iwad` / `-file` segments.
   - Authoritative spec: `Features/007-source-port-list-and-mod-zip.md`.
 - Feature 008: Selection-based profile workspace.
-  - Adds saved profiles as the primary launch model in a two-pane workspace: profile list on the left and shared file library on the right, with `New Profile` in the right-pane library header.
+  - Adds saved profiles as the primary launch model in a two-pane workspace: a pinned profile list on the left and independently scrolling shared file library on the right, with `New Profile` in the right-pane library header.
   - Profiles persist source port, IWAD, and ordered mod references to the shared library and are the only launchable unit.
-  - Profile rows expose explicit `Rename` and `Delete` actions instead of double-click rename.
+  - Profile rows expose explicit `Rename` and `Delete` actions instead of double-click rename, and outside-click rename exit cancels rather than saves.
   - Profile edits auto-save immediately through file-library selection changes; launch requires a selected valid saved profile.
   - Authoritative spec: `Features/008-profile-management.md`.
 
