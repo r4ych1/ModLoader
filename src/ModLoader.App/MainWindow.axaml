@@ -3,7 +3,7 @@
         x:Class="ModLoader.App.MainWindow"
         Width="1180"
         Height="820"
-        Title="ModLoader - Feature 008">
+        Title="ModLoader - Feature 009">
   <Window.Resources>
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
@@ -62,24 +62,14 @@
             BorderBrush="#374151"
             Background="#0b1220"
             Padding="12,10">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel Spacing="2">
-          <TextBlock FontSize="20"
-                     FontWeight="Bold"
-                     Foreground="#e5e7eb"
-                     Text="Feature 008: Profile Workspace" />
-          <TextBlock Foreground="#9ca3af"
-                     Text="Profiles are the only launchable unit. Select a profile on the left, then manage Source Port, IWAD, and Mods from the shared library." />
-        </StackPanel>
-        <Button Grid.Column="1"
-                Content="Launch"
-                IsEnabled="{Binding CanLaunch}"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Center"
-                Margin="12,0,0,0"
-                Padding="20,8"
-                Click="OnLaunchClicked" />
-      </Grid>
+      <StackPanel Spacing="2">
+        <TextBlock FontSize="20"
+                   FontWeight="Bold"
+                   Foreground="#e5e7eb"
+                   Text="Feature 009: Collapsible File Library" />
+        <TextBlock Foreground="#9ca3af"
+                   Text="Profiles are the only launchable unit. Select a profile on the left, then manage Source Port, IWAD, and Mods from the shared library on the right." />
+      </StackPanel>
     </Border>
 
     <Border DockPanel.Dock="Top"
@@ -135,7 +125,13 @@
       </StackPanel>
     </Border>
 
-    <Grid Margin="20" ColumnDefinitions="320,*">
+    <Grid Margin="20">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="{Binding ProfilePaneColumnWidth}" />
+        <ColumnDefinition Width="{Binding PaneSpacerColumnWidth}" />
+        <ColumnDefinition Width="{Binding FileLibraryPaneColumnWidth}" />
+      </Grid.ColumnDefinitions>
+
       <Border Grid.Column="0"
               BorderBrush="#374151"
               BorderThickness="1"
@@ -143,14 +139,34 @@
               Background="#0f172a"
               Padding="12">
         <Grid RowDefinitions="Auto,*">
-          <StackPanel Grid.Row="0" Spacing="2">
-            <TextBlock FontSize="18"
+          <Grid Grid.Row="0"
+                RowDefinitions="Auto,Auto"
+                ColumnDefinitions="*,Auto,Auto">
+            <TextBlock Grid.Row="0"
+                       Grid.Column="0"
+                       FontSize="18"
                        FontWeight="Bold"
                        Foreground="#e5e7eb"
+                       VerticalAlignment="Center"
                        Text="Profiles" />
-            <TextBlock Foreground="#94a3b8"
-                       Text="Select, rename, or delete a launch profile from the saved profile list." />
-          </StackPanel>
+            <Button Grid.Row="0"
+                    Grid.Column="1"
+                    Content="New Profile"
+                    HorizontalAlignment="Right"
+                    Click="OnNewProfileClicked" />
+            <Button Grid.Row="0"
+                    Grid.Column="2"
+                    Content="{Binding FileLibraryPaneToggleText}"
+                    HorizontalAlignment="Right"
+                    Margin="8,0,0,0"
+                    Click="OnToggleFileLibraryPaneCollapsedClicked" />
+            <TextBlock Grid.Row="1"
+                       Grid.Column="0"
+                       Grid.ColumnSpan="3"
+                       Foreground="#94a3b8"
+                       Margin="0,2,0,0"
+                       Text="Select, launch, or delete a launch profile from the saved profile list." />
+          </Grid>
 
           <ScrollViewer Grid.Row="1"
                         Margin="0,12,0,0"
@@ -166,42 +182,34 @@
                           PointerPressed="OnProfileRowPointerPressed">
                     <Grid ColumnDefinitions="*,Auto">
                       <StackPanel Grid.Column="0" Spacing="6">
-                        <StackPanel IsVisible="{Binding IsDisplayVisible}" Spacing="4">
-                          <TextBlock FontWeight="SemiBold"
-                                     Text="{Binding Name}" />
-                          <TextBlock IsVisible="{Binding HasInvalidReason}"
-                                     Foreground="#f59e0b"
-                                     TextWrapping="Wrap"
-                                     Text="{Binding InvalidReason}" />
-                        </StackPanel>
-                        <TextBox IsVisible="{Binding IsRenameVisible}"
-                                 Tag="{Binding Id}"
-                                 Text="{Binding RenameText, Mode=TwoWay}"
-                                 KeyDown="OnProfileRenameKeyDown"
-                                 LostFocus="OnProfileRenameLostFocus"
-                                 Loaded="OnProfileRenameTextBoxLoaded" />
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="{Binding Name}" />
+                        <TextBlock IsVisible="{Binding HasInvalidReason}"
+                                   Foreground="#f59e0b"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding InvalidReason}" />
                       </StackPanel>
 
                       <StackPanel Grid.Column="1"
-                                  IsVisible="{Binding IsDisplayVisible}"
                                   Spacing="6"
                                   Margin="8,0,0,0"
                                   VerticalAlignment="Top">
-                        <Border IsVisible="{Binding IsInvalid}"
-                                Background="#44311d"
+                        <Border IsVisible="{Binding HasStatusBadge}"
+                                Background="{Binding StatusBadgeBackground}"
                                 CornerRadius="999"
                                 Padding="8,2">
-                          <TextBlock Foreground="#f59e0b"
+                          <TextBlock Foreground="{Binding StatusBadgeForeground}"
                                      FontSize="11"
                                      FontWeight="Bold"
-                                     Text="INVALID" />
+                                     Text="{Binding StatusBadgeText}" />
                         </Border>
                         <StackPanel Orientation="Horizontal"
                                     Spacing="8"
                                     HorizontalAlignment="Right">
-                          <Button Content="Rename"
+                          <Button Content="Launch"
                                   Tag="{Binding Id}"
-                                  Click="OnRenameProfileClicked" />
+                                  IsEnabled="{Binding CanLaunchProfile}"
+                                  Click="OnLaunchProfileClicked" />
                           <Button Content="Delete"
                                   Tag="{Binding Id}"
                                   Click="OnDeleteProfileClicked" />
@@ -216,196 +224,223 @@
         </Grid>
       </Border>
 
-      <ScrollViewer Grid.Column="1"
-                    Margin="16,0,0,0"
-                    VerticalScrollBarVisibility="Auto"
-                    HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Spacing="12">
-          <Border BorderBrush="#374151"
-                  BorderThickness="1"
-                  CornerRadius="8"
-                  Background="#0f172a"
-                  Padding="12">
-            <Grid ColumnDefinitions="*,Auto">
-              <StackPanel Grid.Column="0" Spacing="4">
-                <TextBlock FontSize="18"
-                           FontWeight="Bold"
-                           Foreground="#e5e7eb"
-                           Text="{Binding SelectedProfileName}" />
-                <TextBlock Foreground="#94a3b8"
-                           TextWrapping="Wrap"
-                           Text="{Binding SelectedProfileStatusText}" />
+      <Border Grid.Column="2"
+              IsVisible="{Binding IsFileLibraryPaneExpanded}"
+              BorderBrush="#374151"
+              BorderThickness="1"
+              CornerRadius="8"
+              Background="#0f172a"
+              Padding="12">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0"
+                     FontSize="18"
+                     FontWeight="Bold"
+                     Foreground="#e5e7eb"
+                     VerticalAlignment="Center"
+                     Text="File Library" />
+
+          <ScrollViewer Grid.Row="1"
+                        Margin="0,12,0,0"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="12">
+              <Border BorderBrush="#374151"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Background="#111827"
+                      Padding="12">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Grid.Column="0"
+                              IsVisible="{Binding IsSelectedProfileDisplayVisible}"
+                              Spacing="4">
+                    <TextBlock FontSize="18"
+                               FontWeight="Bold"
+                               Foreground="#e5e7eb"
+                               Text="{Binding SelectedProfileName}" />
+                    <TextBlock Foreground="#94a3b8"
+                               TextWrapping="Wrap"
+                               Text="{Binding SelectedProfileStatusText}" />
+                  </StackPanel>
+                  <TextBox Grid.Column="0"
+                           IsVisible="{Binding IsSelectedProfileRenameVisible}"
+                           Tag="{Binding SelectedProfileId}"
+                           Text="{Binding SelectedProfileRenameText, Mode=TwoWay}"
+                           KeyDown="OnProfileRenameKeyDown"
+                           LostFocus="OnProfileRenameLostFocus"
+                           Loaded="OnProfileRenameTextBoxLoaded" />
+                  <Button Grid.Column="1"
+                          Content="Rename"
+                          IsEnabled="{Binding CanRenameSelectedProfile}"
+                          IsVisible="{Binding IsSelectedProfileDisplayVisible}"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Top"
+                          Margin="12,0,0,0"
+                          Click="OnRenameProfileClicked" />
+                </Grid>
+              </Border>
+
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock FontWeight="SemiBold"
+                             VerticalAlignment="Center"
+                             Text="Source Port Inputs" />
+                  <Button Grid.Column="1"
+                          Content="{Binding SourcePortSectionToggleText}"
+                          Click="OnToggleSourcePortSectionCollapsedClicked" />
+                </Grid>
+                <Border Classes="DropZone"
+                        IsVisible="{Binding AreSourcePortRowsVisible}"
+                        DragDrop.AllowDrop="True"
+                        DragDrop.DragOver="OnDropZoneDragOver"
+                        DragDrop.Drop="OnSourcePortDrop">
+                  <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
+                    <TextBlock Grid.Row="0"
+                               Text="Allowed: .exe. Drop one or more files. Directories are ignored."
+                               VerticalAlignment="Center" />
+                    <ItemsControl Grid.Row="1"
+                                  Margin="0,8,0,0"
+                                  ItemsSource="{Binding SourcePortRows}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border Classes="InputRow"
+                                  Classes.selected="{Binding IsSelected}"
+                                  Margin="0,4,0,0"
+                                  Tag="{Binding Path}"
+                                  PointerPressed="OnSourcePortRowPointerPressed">
+                            <Grid>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="SourcePortActionColumn" />
+                              </Grid.ColumnDefinitions>
+                              <TextBlock Grid.Column="0"
+                                         Text="{Binding Path}"
+                                         TextTrimming="CharacterEllipsis"
+                                         VerticalAlignment="Center" />
+                              <Button Grid.Column="1"
+                                      Content="Remove"
+                                      Tag="{Binding Path}"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      Margin="8,0,0,0"
+                                      Click="OnRemoveSourcePortClicked" />
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Grid>
+                </Border>
               </StackPanel>
-              <Button Grid.Column="1"
-                      Content="New Profile"
-                      IsEnabled="{Binding CanCreateProfile}"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Top"
-                      Margin="12,0,0,0"
-                      Click="OnNewProfileClicked" />
-            </Grid>
-          </Border>
 
-          <StackPanel Spacing="8">
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock FontWeight="SemiBold"
-                         VerticalAlignment="Center"
-                         Text="Source Port Inputs" />
-              <Button Grid.Column="1"
-                      Content="{Binding SourcePortSectionToggleText}"
-                      Click="OnToggleSourcePortSectionCollapsedClicked" />
-            </Grid>
-            <Border Classes="DropZone"
-                    IsVisible="{Binding AreSourcePortRowsVisible}"
-                    DragDrop.AllowDrop="True"
-                    DragDrop.DragOver="OnDropZoneDragOver"
-                    DragDrop.Drop="OnSourcePortDrop">
-              <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
-                <TextBlock Grid.Row="0"
-                           Text="Allowed: .exe. Drop one or more files. Directories are ignored."
-                           VerticalAlignment="Center" />
-                <ItemsControl Grid.Row="1"
-                              Margin="0,8,0,0"
-                              ItemsSource="{Binding SourcePortRows}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border Classes="InputRow"
-                              Classes.selected="{Binding IsSelected}"
-                              Margin="0,4,0,0"
-                              Tag="{Binding Path}"
-                              PointerPressed="OnSourcePortRowPointerPressed">
-                        <Grid>
-                          <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="SourcePortActionColumn" />
-                          </Grid.ColumnDefinitions>
-                          <TextBlock Grid.Column="0"
-                                     Text="{Binding Path}"
-                                     TextTrimming="CharacterEllipsis"
-                                     VerticalAlignment="Center" />
-                          <Button Grid.Column="1"
-                                  Content="Remove"
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock FontWeight="SemiBold"
+                             VerticalAlignment="Center"
+                             Text="IWAD Inputs" />
+                  <Button Grid.Column="1"
+                          Content="{Binding IwadSectionToggleText}"
+                          Click="OnToggleIwadSectionCollapsedClicked" />
+                </Grid>
+                <Border Classes="DropZone"
+                        IsVisible="{Binding AreIwadRowsVisible}"
+                        DragDrop.AllowDrop="True"
+                        DragDrop.DragOver="OnDropZoneDragOver"
+                        DragDrop.Drop="OnIwadDrop">
+                  <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
+                    <TextBlock Grid.Row="0"
+                               Text="Allowed: .wad, .pk3, .iwad, .ipk3, .ipk7, .pk7. Directories scan top-level files only."
+                               VerticalAlignment="Center" />
+                    <ItemsControl Grid.Row="1"
+                                  Margin="0,8,0,0"
+                                  ItemsSource="{Binding IwadRows}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border Classes="InputRow"
+                                  Classes.selected="{Binding IsSelected}"
+                                  Margin="0,4,0,0"
                                   Tag="{Binding Path}"
-                                  HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  Margin="8,0,0,0"
-                                  Click="OnRemoveSourcePortClicked" />
-                        </Grid>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </Grid>
-            </Border>
-          </StackPanel>
+                                  PointerPressed="OnIwadRowPointerPressed">
+                            <Grid>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="IwadActionColumn" />
+                              </Grid.ColumnDefinitions>
+                              <TextBlock Grid.Column="0"
+                                         Text="{Binding Path}"
+                                         TextTrimming="CharacterEllipsis"
+                                         VerticalAlignment="Center" />
+                              <Button Grid.Column="1"
+                                      Content="Remove"
+                                      Tag="{Binding Path}"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      Margin="8,0,0,0"
+                                      Click="OnRemoveIwadClicked" />
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Grid>
+                </Border>
+              </StackPanel>
 
-          <StackPanel Spacing="8">
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock FontWeight="SemiBold"
-                         VerticalAlignment="Center"
-                         Text="IWAD Inputs" />
-              <Button Grid.Column="1"
-                      Content="{Binding IwadSectionToggleText}"
-                      Click="OnToggleIwadSectionCollapsedClicked" />
-            </Grid>
-            <Border Classes="DropZone"
-                    IsVisible="{Binding AreIwadRowsVisible}"
-                    DragDrop.AllowDrop="True"
-                    DragDrop.DragOver="OnDropZoneDragOver"
-                    DragDrop.Drop="OnIwadDrop">
-              <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
-                <TextBlock Grid.Row="0"
-                           Text="Allowed: .wad, .pk3, .iwad, .ipk3, .ipk7, .pk7. Directories scan top-level files only."
-                           VerticalAlignment="Center" />
-                <ItemsControl Grid.Row="1"
-                              Margin="0,8,0,0"
-                              ItemsSource="{Binding IwadRows}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border Classes="InputRow"
-                              Classes.selected="{Binding IsSelected}"
-                              Margin="0,4,0,0"
-                              Tag="{Binding Path}"
-                              PointerPressed="OnIwadRowPointerPressed">
-                        <Grid>
-                          <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="IwadActionColumn" />
-                          </Grid.ColumnDefinitions>
-                          <TextBlock Grid.Column="0"
-                                     Text="{Binding Path}"
-                                     TextTrimming="CharacterEllipsis"
-                                     VerticalAlignment="Center" />
-                          <Button Grid.Column="1"
-                                  Content="Remove"
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock FontWeight="SemiBold"
+                             VerticalAlignment="Center"
+                             Text="Mod Inputs" />
+                  <Button Grid.Column="1"
+                          Content="{Binding ModSectionToggleText}"
+                          Click="OnToggleModSectionCollapsedClicked" />
+                </Grid>
+                <Border Classes="DropZone"
+                        IsVisible="{Binding AreModRowsVisible}"
+                        DragDrop.AllowDrop="True"
+                        DragDrop.DragOver="OnDropZoneDragOver"
+                        DragDrop.Drop="OnModDrop">
+                  <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
+                    <TextBlock Grid.Row="0"
+                               Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz, .zip. Directories scan top-level files only."
+                               VerticalAlignment="Center" />
+                    <ItemsControl Grid.Row="1"
+                                  Margin="0,8,0,0"
+                                  ItemsSource="{Binding ModRows}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border Classes="InputRow"
+                                  Classes.selected="{Binding IsSelected}"
+                                  Margin="0,4,0,0"
                                   Tag="{Binding Path}"
-                                  HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  Margin="8,0,0,0"
-                                  Click="OnRemoveIwadClicked" />
-                        </Grid>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </Grid>
-            </Border>
-          </StackPanel>
-
-          <StackPanel Spacing="8">
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock FontWeight="SemiBold"
-                         VerticalAlignment="Center"
-                         Text="Mod Inputs" />
-              <Button Grid.Column="1"
-                      Content="{Binding ModSectionToggleText}"
-                      Click="OnToggleModSectionCollapsedClicked" />
-            </Grid>
-            <Border Classes="DropZone"
-                    IsVisible="{Binding AreModRowsVisible}"
-                    DragDrop.AllowDrop="True"
-                    DragDrop.DragOver="OnDropZoneDragOver"
-                    DragDrop.Drop="OnModDrop">
-              <Grid Grid.IsSharedSizeScope="True" RowDefinitions="Auto,Auto">
-                <TextBlock Grid.Row="0"
-                           Text="Allowed: .wad, .pwad, .pk3, .pk7, .ipk3, .ipk7, .pkz, .zip. Directories scan top-level files only."
-                           VerticalAlignment="Center" />
-                <ItemsControl Grid.Row="1"
-                              Margin="0,8,0,0"
-                              ItemsSource="{Binding ModRows}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border Classes="InputRow"
-                              Classes.selected="{Binding IsSelected}"
-                              Margin="0,4,0,0"
-                              Tag="{Binding Path}"
-                              PointerPressed="OnModRowPointerPressed">
-                        <Grid>
-                          <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" SharedSizeGroup="ModActionColumn" />
-                          </Grid.ColumnDefinitions>
-                          <TextBlock Grid.Column="0"
-                                     Text="{Binding Path}"
-                                     TextTrimming="CharacterEllipsis"
-                                     VerticalAlignment="Center" />
-                          <Button Grid.Column="1"
-                                  Content="Remove"
-                                  Tag="{Binding Path}"
-                                  HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  Margin="8,0,0,0"
-                                  Click="OnRemoveModClicked" />
-                        </Grid>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </Grid>
-            </Border>
-          </StackPanel>
-        </StackPanel>
-      </ScrollViewer>
+                                  PointerPressed="OnModRowPointerPressed">
+                            <Grid>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="ModActionColumn" />
+                              </Grid.ColumnDefinitions>
+                              <TextBlock Grid.Column="0"
+                                         Text="{Binding Path}"
+                                         TextTrimming="CharacterEllipsis"
+                                         VerticalAlignment="Center" />
+                              <Button Grid.Column="1"
+                                      Content="Remove"
+                                      Tag="{Binding Path}"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      Margin="8,0,0,0"
+                                      Click="OnRemoveModClicked" />
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
     </Grid>
   </DockPanel>
 </Window>

@@ -1,16 +1,13 @@
 # Feature 005 - Fixed Header and Launch Execution
 
 ## Goal
-Provide a fixed top header with persistent title/label visibility and a right-aligned Launch action that executes the selected source port with deterministic full-path arguments.
+Provide the fixed top header shell used by the app and define deterministic full-path launch execution behavior.
 
 ## In Scope
 - Fixed, non-scrolling top header.
 - Header content:
   - Current title text.
   - Current label text.
-  - Right-aligned `Launch` button.
-- Launch enablement gate:
-  - Enabled only when one source-port row is selected and one IWAD is selected.
 - Launch command generation using full paths:
   - `-iwad <selectedIwadFullPath>`
   - Optional `-file <selectedModFullPath...>` in selected Mod sequence order.
@@ -21,6 +18,7 @@ Provide a fixed top header with persistent title/label visibility and a right-al
 - Any change to footer command preview format from Feature 004.
 - Changing selection semantics from prior features.
 - Profile management.
+- The final placement of launch controls in later profile-based workspace features.
 - Retry workflows or modal error dialogs.
 
 ## Definitions
@@ -35,12 +33,10 @@ Provide a fixed top header with persistent title/label visibility and a right-al
 ## Rules
 ### Fixed Header Layout
 - Header remains visible while main content scrolls.
-- Launch button is visually right-aligned in the header row.
 
 ### Launch Gating
-- Launch button is disabled when no source-port row is selected.
-- Launch button is disabled when no IWAD is selected.
-- Launch button is enabled only when both launch-readiness conditions are satisfied.
+- Before profile-based features, launch requires one selected source-port row and one selected IWAD.
+- Later profile-based features may replace that UI gate while reusing the same launch argument construction and failure feedback rules.
 
 ### Launch Argument Construction
 - Executable path is the selected source-port row full path.
@@ -63,14 +59,14 @@ Provide a fixed top header with persistent title/label visibility and a right-al
 ### Fixed header visibility
 Given content long enough to scroll
 When user scrolls the main content area
-Then header title/label and Launch button remain visible at the top.
+Then header title and label remain visible at the top.
 
 ### Launch gating
 Given no selected source-port row or no selected IWAD
 When UI is rendered
-Then Launch button is disabled.
+Then launch is not ready.
 And given one source-port row is selected and one IWAD is selected
-Then Launch button is enabled.
+Then launch is ready.
 
 ### Launch command uses full paths
 Given source port, selected IWAD, and selected Mods

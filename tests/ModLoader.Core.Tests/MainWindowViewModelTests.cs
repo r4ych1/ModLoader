@@ -89,7 +89,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public void CanCreateProfile_RequiresCurrentSelectedSourcePortAndIwad()
+    public void CanCreateProfile_IsAlwaysTrue()
     {
         using var temp = new TempDirectory();
         var source = temp.CreateFile("gzdoom.exe");
@@ -98,17 +98,82 @@ public sealed class MainWindowViewModelTests
         var persistence = new RecordingPersistence();
         var viewModel = new MainWindowViewModel(persistence);
 
-        Assert.False(viewModel.CanCreateProfile);
+        Assert.True(viewModel.CanCreateProfile);
 
         viewModel.ProcessSourcePortDrop([source]);
         viewModel.ProcessIwadDrop([iwad]);
-        Assert.False(viewModel.CanCreateProfile);
+        Assert.True(viewModel.CanCreateProfile);
 
         viewModel.ToggleSourcePortSelection(source);
-        Assert.False(viewModel.CanCreateProfile);
+        Assert.True(viewModel.CanCreateProfile);
 
         viewModel.ToggleIwadSelection(iwad);
         Assert.True(viewModel.CanCreateProfile);
+    }
+
+    [Fact]
+    public void CreateNewProfile_WithoutSelections_CreatesSelectedInvalidProfile()
+    {
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.CreateNewProfile();
+
+        Assert.True(viewModel.HasSelectedProfile);
+        Assert.Equal("Profile 1", viewModel.SelectedProfileName);
+        Assert.False(viewModel.CanLaunch);
+        Assert.Single(viewModel.ProfileRows);
+        Assert.True(viewModel.ProfileRows.Single().IsInvalid);
+        Assert.Null(persistence.SavedStates.Last().Profiles.Single().SourcePortPath);
+        Assert.Null(persistence.SavedStates.Last().Profiles.Single().IwadPath);
+        Assert.Empty(persistence.SavedStates.Last().Profiles.Single().SelectedModPaths);
+    }
+
+    [Fact]
+    public void CreateNewProfile_WithPartialSelections_CopiesCurrentSelections()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var mod = temp.CreateFile("mod-a.pk3");
+
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.ProcessSourcePortDrop([source]);
+        viewModel.ProcessModDrop([mod]);
+        viewModel.ToggleSourcePortSelection(source);
+        viewModel.ToggleModSelection(mod);
+
+        viewModel.CreateNewProfile();
+
+        var savedProfile = persistence.SavedStates.Last().Profiles.Single();
+        Assert.Equal(Path.GetFullPath(source), savedProfile.SourcePortPath);
+        Assert.Null(savedProfile.IwadPath);
+        Assert.Equal([Path.GetFullPath(mod)], savedProfile.SelectedModPaths);
+        Assert.Equal(savedProfile.Id, persistence.SavedStates.Last().SelectedProfileId);
+    }
+
+    [Fact]
+    public void CreateNewProfile_WhenFileLibraryPaneCollapsed_ExpandsPane()
+    {
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    IsFileLibraryPaneCollapsed = true
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.CreateNewProfile();
+
+        Assert.False(viewModel.IsFileLibraryPaneCollapsed);
+        Assert.True(viewModel.IsFileLibraryPaneExpanded);
+        Assert.False(persistence.SavedStates.Last().IsFileLibraryPaneCollapsed);
     }
 
     [Fact]
@@ -117,6 +182,11 @@ public sealed class MainWindowViewModelTests
         var persistence = new RecordingPersistence();
         var viewModel = new MainWindowViewModel(persistence);
 
+        Assert.False(viewModel.IsFileLibraryPaneCollapsed);
+        Assert.True(viewModel.IsFileLibraryPaneExpanded);
+        Assert.Equal("Collapse", viewModel.FileLibraryPaneToggleText);
+        Assert.Equal(16d, viewModel.PaneSpacerColumnWidth.Value);
+        Assert.Equal(1d, viewModel.FileLibraryPaneColumnWidth.Value);
         Assert.True(viewModel.AreSourcePortRowsVisible);
         Assert.Equal("Collapse", viewModel.SourcePortSectionToggleText);
         Assert.True(viewModel.AreIwadRowsVisible);
@@ -128,6 +198,13 @@ public sealed class MainWindowViewModelTests
         viewModel.ToggleIwadSectionCollapsed();
         viewModel.ToggleModSectionCollapsed();
 
+        viewModel.ToggleFileLibraryPaneCollapsed();
+
+        Assert.True(viewModel.IsFileLibraryPaneCollapsed);
+        Assert.False(viewModel.IsFileLibraryPaneExpanded);
+        Assert.Equal("Expand", viewModel.FileLibraryPaneToggleText);
+        Assert.Equal(0d, viewModel.PaneSpacerColumnWidth.Value);
+        Assert.Equal(0d, viewModel.FileLibraryPaneColumnWidth.Value);
         Assert.True(viewModel.IsSourcePortSectionCollapsed);
         Assert.False(viewModel.AreSourcePortRowsVisible);
         Assert.Equal("Expand", viewModel.SourcePortSectionToggleText);
@@ -138,6 +215,7 @@ public sealed class MainWindowViewModelTests
         Assert.False(viewModel.AreModRowsVisible);
         Assert.Equal("Expand", viewModel.ModSectionToggleText);
 
+        Assert.True(persistence.SavedStates.Last().IsFileLibraryPaneCollapsed);
         Assert.True(persistence.SavedStates.Last().IsSourcePortSectionCollapsed);
         Assert.True(persistence.SavedStates.Last().IsIwadSectionCollapsed);
         Assert.True(persistence.SavedStates.Last().IsModSectionCollapsed);
@@ -152,6 +230,7 @@ public sealed class MainWindowViewModelTests
             {
                 State = new LaunchInputsConfig
                 {
+                    IsFileLibraryPaneCollapsed = true,
                     IsSourcePortSectionCollapsed = true,
                     IsIwadSectionCollapsed = false,
                     IsModSectionCollapsed = true
@@ -161,6 +240,11 @@ public sealed class MainWindowViewModelTests
 
         var viewModel = new MainWindowViewModel(persistence);
 
+        Assert.True(viewModel.IsFileLibraryPaneCollapsed);
+        Assert.False(viewModel.IsFileLibraryPaneExpanded);
+        Assert.Equal("Expand", viewModel.FileLibraryPaneToggleText);
+        Assert.Equal(0d, viewModel.PaneSpacerColumnWidth.Value);
+        Assert.Equal(0d, viewModel.FileLibraryPaneColumnWidth.Value);
         Assert.True(viewModel.IsSourcePortSectionCollapsed);
         Assert.False(viewModel.AreSourcePortRowsVisible);
         Assert.Equal("Expand", viewModel.SourcePortSectionToggleText);
@@ -170,6 +254,41 @@ public sealed class MainWindowViewModelTests
         Assert.True(viewModel.IsModSectionCollapsed);
         Assert.False(viewModel.AreModRowsVisible);
         Assert.Equal("Expand", viewModel.ModSectionToggleText);
+    }
+
+    [Fact]
+    public void ToggleFileLibraryPaneCollapse_DoesNotChangeProfileSelectionsOrLaunchState()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var iwad = temp.CreateFile("doom2.wad");
+        var mod = temp.CreateFile("mod-a.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source],
+                    Iwads = [iwad],
+                    Mods = [mod],
+                    Profiles = [CreateProfile("p1", "Profile 1", source, iwad, mod)],
+                    SelectedProfileId = "p1"
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.ToggleFileLibraryPaneCollapsed();
+
+        Assert.Equal("Profile 1", viewModel.SelectedProfileName);
+        Assert.Equal(Path.GetFullPath(source), viewModel.SelectedSourcePortPath);
+        Assert.Equal(Path.GetFullPath(iwad), viewModel.SelectedIwadPath);
+        Assert.Equal([Path.GetFullPath(mod)], viewModel.SelectedModPaths);
+        Assert.True(viewModel.CanLaunch);
+        Assert.True(viewModel.IsFileLibraryPaneCollapsed);
     }
 
     [Fact]
@@ -201,6 +320,7 @@ public sealed class MainWindowViewModelTests
         Assert.Null(viewModel.SelectedIwadPath);
         Assert.Null(persistence.SavedStates.Last().Profiles.Single().IwadPath);
         Assert.True(viewModel.ProfileRows.Single().IsInvalid);
+        Assert.False(viewModel.ProfileRows.Single().CanLaunchProfile);
     }
 
     [Fact]
@@ -438,6 +558,9 @@ public sealed class MainWindowViewModelTests
 
         var profileRow = viewModel.ProfileRows.Single();
         Assert.True(profileRow.IsInvalid);
+        Assert.False(profileRow.HasValidMessage);
+        Assert.True(profileRow.HasStatusBadge);
+        Assert.Equal("INVALID", profileRow.StatusBadgeText);
         Assert.Contains("Source Port", profileRow.InvalidReason);
         Assert.False(viewModel.CanLaunch);
         Assert.Null(viewModel.SelectedSourcePortPath);
@@ -445,7 +568,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public void BeginRenameProfile_CommitRename_PersistsNewUniqueName()
+    public void ValidProfileRow_ShowsExplicitValidBadge()
     {
         using var temp = new TempDirectory();
         var source = temp.CreateFile("gzdoom.exe");
@@ -466,20 +589,53 @@ public sealed class MainWindowViewModelTests
 
         var viewModel = new MainWindowViewModel(persistence);
 
-        viewModel.BeginRenameProfile("p1");
         var row = viewModel.ProfileRows.Single();
-        row.RenameText = "Ultra-Violence";
+
+        Assert.False(row.IsInvalid);
+        Assert.True(row.CanLaunchProfile);
+        Assert.True(row.HasStatusBadge);
+        Assert.Equal("VALID", row.StatusBadgeText);
+        Assert.True(row.HasValidMessage);
+        Assert.Equal("VALID", row.ValidMessage);
+        Assert.False(row.HasInvalidReason);
+    }
+
+    [Fact]
+    public void BeginRenameSelectedProfile_CommitRename_PersistsNewUniqueName()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var iwad = temp.CreateFile("doom2.wad");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source],
+                    Iwads = [iwad],
+                    Profiles = [CreateProfile("p1", "Profile 1", source, iwad)]
+                }
+            }
+        };
+
+        var viewModel = new MainWindowViewModel(persistence);
+
+        viewModel.ToggleProfileSelection("p1");
+        viewModel.BeginRenameSelectedProfile();
+        viewModel.SelectedProfileRenameText = "Ultra-Violence";
 
         viewModel.CommitRename("p1");
 
-        Assert.False(row.IsRenaming);
-        Assert.Equal("Ultra-Violence", row.Name);
+        Assert.False(viewModel.IsSelectedProfileRenameVisible);
+        Assert.Equal("Ultra-Violence", viewModel.SelectedProfileName);
         Assert.Equal("Ultra-Violence", persistence.SavedStates.Last().Profiles.Single().Name);
         Assert.False(viewModel.HasMessage);
     }
 
     [Fact]
-    public void BeginRenameProfile_SelectsProfileAndHydratesSelections()
+    public void BeginRenameSelectedProfile_SelectsProfileAndHydratesSelections()
     {
         using var temp = new TempDirectory();
         var source1 = temp.CreateFile("gzdoom.exe");
@@ -509,10 +665,11 @@ public sealed class MainWindowViewModelTests
 
         var viewModel = new MainWindowViewModel(persistence);
 
-        viewModel.BeginRenameProfile("p2");
+        viewModel.ToggleProfileSelection("p2");
+        viewModel.BeginRenameSelectedProfile();
 
-        var row = viewModel.ProfileRows.Single(candidate => candidate.Id == "p2");
-        Assert.True(row.IsRenaming);
+        Assert.True(viewModel.IsSelectedProfileRenameVisible);
+        Assert.Equal("Profile 2", viewModel.SelectedProfileRenameText);
         Assert.Equal("Profile 2", viewModel.SelectedProfileName);
         Assert.Equal(Path.GetFullPath(source2), viewModel.SelectedSourcePortPath);
         Assert.Equal(Path.GetFullPath(iwad2), viewModel.SelectedIwadPath);
@@ -546,14 +703,14 @@ public sealed class MainWindowViewModelTests
 
         var viewModel = new MainWindowViewModel(persistence);
 
-        viewModel.BeginRenameProfile("p1");
-        var row = viewModel.ProfileRows.First(candidate => candidate.Id == "p1");
-        row.RenameText = "profile 2";
+        viewModel.ToggleProfileSelection("p1");
+        viewModel.BeginRenameSelectedProfile();
+        viewModel.SelectedProfileRenameText = "profile 2";
 
         viewModel.CommitRename("p1");
 
-        Assert.True(row.IsRenaming);
-        Assert.Equal("Profile 1", row.Name);
+        Assert.True(viewModel.IsSelectedProfileRenameVisible);
+        Assert.Equal("Profile 1", viewModel.SelectedProfileName);
         Assert.Equal("Profile name must be unique.", viewModel.MessageText);
     }
 
@@ -579,19 +736,85 @@ public sealed class MainWindowViewModelTests
 
         var viewModel = new MainWindowViewModel(persistence);
 
-        viewModel.BeginRenameProfile("p1");
+        viewModel.ToggleProfileSelection("p1");
+        viewModel.BeginRenameSelectedProfile();
         var saveCallCountBeforeCancel = persistence.SaveCallCount;
-        var row = viewModel.ProfileRows.Single();
-        row.RenameText = "Ultra-Violence";
+        viewModel.SelectedProfileRenameText = "Ultra-Violence";
 
         var canceled = viewModel.CancelRename();
 
         Assert.True(canceled);
-        Assert.False(row.IsRenaming);
-        Assert.Equal("Profile 1", row.Name);
-        Assert.Equal("Profile 1", row.RenameText);
+        Assert.False(viewModel.IsSelectedProfileRenameVisible);
+        Assert.Equal("Profile 1", viewModel.SelectedProfileName);
+        Assert.Equal("Profile 1", viewModel.SelectedProfileRenameText);
         Assert.Equal(saveCallCountBeforeCancel, persistence.SaveCallCount);
         Assert.Equal("Profile 1", persistence.SavedStates.Last().Profiles.Single().Name);
+    }
+
+    [Fact]
+    public void CanRenameSelectedProfile_IsFalse_WhenNoProfileIsSelected()
+    {
+        var persistence = new RecordingPersistence();
+        var viewModel = new MainWindowViewModel(persistence);
+
+        Assert.False(viewModel.CanRenameSelectedProfile);
+
+        viewModel.BeginRenameSelectedProfile();
+
+        Assert.False(viewModel.IsSelectedProfileRenameVisible);
+    }
+
+    [Fact]
+    public void LaunchProfile_WhenValidAndUnselected_SelectsProfileAndUsesThatProfilesArguments()
+    {
+        using var temp = new TempDirectory();
+        var source1 = temp.CreateFile("gzdoom.exe");
+        var source2 = temp.CreateFile("vkdoom.exe");
+        var iwad1 = temp.CreateFile("doom.wad");
+        var iwad2 = temp.CreateFile("doom2.wad");
+        var mod1 = temp.CreateFile("mod-a.pk3");
+        var mod2 = temp.CreateFile("mod-b.pk3");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source1, source2],
+                    Iwads = [iwad1, iwad2],
+                    Mods = [mod1, mod2],
+                    Profiles =
+                    [
+                        CreateProfile("p1", "Profile 1", source1, iwad1, mod1),
+                        CreateProfile("p2", "Profile 2", source2, iwad2, mod2)
+                    ],
+                    SelectedProfileId = "p1"
+                }
+            }
+        };
+
+        var launcher = new RecordingLauncher();
+        var viewModel = new MainWindowViewModel(persistence, launcher);
+
+        viewModel.LaunchProfile("p2");
+
+        Assert.Equal("p2", viewModel.SelectedProfileId);
+        Assert.Equal("Profile 2", viewModel.SelectedProfileName);
+        Assert.Equal(Path.GetFullPath(source2), viewModel.SelectedSourcePortPath);
+        Assert.Equal(Path.GetFullPath(iwad2), viewModel.SelectedIwadPath);
+        Assert.Equal([Path.GetFullPath(mod2)], viewModel.SelectedModPaths);
+        Assert.Equal("p2", persistence.SavedStates.Last().SelectedProfileId);
+        Assert.Equal(1, launcher.LaunchCallCount);
+        Assert.Equal(Path.GetFullPath(source2), launcher.LastExecutablePath);
+        Assert.Equal(
+            [
+                "-iwad",
+                Path.GetFullPath(iwad2),
+                "-file",
+                Path.GetFullPath(mod2)
+            ],
+            launcher.LastArguments);
     }
 
     [Fact]
@@ -638,6 +861,88 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void LaunchProfile_WhenTargetProfileInvalid_DoesNotInvokeLauncher()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.CreateFile("gzdoom.exe");
+        var missingIwad = Path.Combine(temp.Path, "missing.wad");
+
+        var persistence = new RecordingPersistence
+        {
+            LoadResult = new LaunchInputsLoadResult
+            {
+                State = new LaunchInputsConfig
+                {
+                    SourcePorts = [source],
+                    Profiles = [CreateProfile("p1", "Profile 1", source, missingIwad)]
+                }
+            }
+        };
+
+        var launcher = new RecordingLauncher();
+        var viewModel = new MainWindowViewModel(persistence, launcher);
+
+        var row = viewModel.ProfileRows.Single();
+        Assert.True(row.IsInvalid);
+        Assert.False(row.CanLaunchProfile);
+
+        viewModel.LaunchProfile("p1");
+
+        Assert.Equal("p1", viewModel.SelectedProfileId);
+        Assert.Equal(0, launcher.LaunchCallCount);
+    }
+
+    [Fact]
+    public void MainWindowXaml_PlacesProfileActionsAndSharedStatusBadgeInCorrectSections()
+    {
+        var xamlPath = GetRepoFilePath("src", "ModLoader.App", "MainWindow.axaml");
+        var xaml = File.ReadAllText(xamlPath);
+
+        Assert.DoesNotContain("Click=\"OnLaunchClicked\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"OnLaunchProfileClicked\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Text=\"{Binding SelectedProfileRenameText, Mode=TwoWay}\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Text=\"{Binding RenameText, Mode=TwoWay}\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsEnabled=\"{Binding CanCreateProfile}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("IsVisible=\"{Binding HasStatusBadge}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Text=\"{Binding StatusBadgeText}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Background=\"{Binding StatusBadgeBackground}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Foreground=\"{Binding StatusBadgeForeground}\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsVisible=\"{Binding HasValidMessage}\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsVisible=\"{Binding IsFileLibraryPaneCollapsed}\"", xaml, StringComparison.Ordinal);
+
+        var profilesHeaderIndex = xaml.IndexOf("Text=\"Profiles\"", StringComparison.Ordinal);
+        var newProfileIndex = xaml.IndexOf("Content=\"New Profile\"", StringComparison.Ordinal);
+        var fileLibraryToggleIndex = xaml.IndexOf("Content=\"{Binding FileLibraryPaneToggleText}\"", StringComparison.Ordinal);
+        var selectedProfileNameIndex = xaml.IndexOf("Text=\"{Binding SelectedProfileName}\"", StringComparison.Ordinal);
+        var renameIndex = xaml.IndexOf("Content=\"Rename\"", StringComparison.Ordinal);
+        var launchIndex = xaml.LastIndexOf("Content=\"Launch\"", StringComparison.Ordinal);
+        var deleteIndex = xaml.LastIndexOf("Content=\"Delete\"", StringComparison.Ordinal);
+
+        Assert.True(profilesHeaderIndex >= 0);
+        Assert.True(newProfileIndex > profilesHeaderIndex);
+        Assert.True(fileLibraryToggleIndex > newProfileIndex);
+        Assert.True(selectedProfileNameIndex > newProfileIndex);
+        Assert.True(selectedProfileNameIndex > fileLibraryToggleIndex);
+        Assert.True(renameIndex > selectedProfileNameIndex);
+        Assert.True(launchIndex >= 0);
+        Assert.True(deleteIndex > launchIndex);
+        Assert.Equal(fileLibraryToggleIndex, xaml.LastIndexOf("Content=\"{Binding FileLibraryPaneToggleText}\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FeatureSpecs_ReflectProfileHeaderToggleAndValidBadgeCorrection()
+    {
+        var feature008 = File.ReadAllText(GetRepoFilePath("Features", "008-profile-management.md"));
+        var feature009 = File.ReadAllText(GetRepoFilePath("Features", "009-file-library-pane-collapse.md"));
+
+        Assert.Contains("file-library `Expand` / `Collapse` action to the right of `New Profile`", feature008, StringComparison.Ordinal);
+        Assert.Contains("valid rows show a `VALID` badge in that same slot", feature008, StringComparison.Ordinal);
+        Assert.Contains("does not render a separate inline valid text line", feature008, StringComparison.Ordinal);
+        Assert.Contains("the right file-library pane is not rendered", feature009, StringComparison.Ordinal);
+        Assert.Contains("the spacer gap between the profile pane and file-library pane is not rendered", feature009, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Constructor_WithLegacySelectionStateAndNoProfiles_StartsDetachedAndDisabled()
     {
         using var temp = new TempDirectory();
@@ -670,6 +975,11 @@ public sealed class MainWindowViewModelTests
         Assert.Empty(viewModel.SelectedModPaths);
         Assert.False(viewModel.CanLaunch);
         Assert.Equal(string.Empty, viewModel.CommandPreviewArguments);
+    }
+
+    private static string GetRepoFilePath(params string[] relativeParts)
+    {
+        return Path.GetFullPath(Path.Combine([AppContext.BaseDirectory, "..", "..", "..", "..", "..", .. relativeParts]));
     }
 
     private static ProfileConfig CreateProfile(string id, string name, string? sourcePortPath, string? iwadPath, params string[] selectedModPaths)
@@ -709,6 +1019,7 @@ internal sealed class RecordingPersistence : ILaunchInputsPersistence
             SourcePorts = [.. config.SourcePorts],
             Profiles = [.. config.Profiles.Select(CloneProfile)],
             SelectedProfileId = config.SelectedProfileId,
+            IsFileLibraryPaneCollapsed = config.IsFileLibraryPaneCollapsed,
             IsSourcePortSectionCollapsed = config.IsSourcePortSectionCollapsed,
             SelectedSourcePortPath = config.SelectedSourcePortPath,
             Iwads = [.. config.Iwads],

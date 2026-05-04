@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Avalonia.Controls;
 using ModLoader.Core;
 
 namespace ModLoader.App;
@@ -13,13 +14,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly ILaunchInputsPersistence _persistence;
     private readonly LaunchInputsStore _store;
     private readonly List<ProfileConfig> _profiles = [];
+    private bool _isFileLibraryPaneCollapsed;
     private bool _isIwadSectionCollapsed;
     private bool _isModSectionCollapsed;
+    private bool _isSelectedProfileRenameVisible;
     private bool _isSourcePortSectionCollapsed;
     private string? _messageText;
     private string? _pendingDeleteProfileId;
     private string? _selectedIwadPath;
     private string? _selectedProfileId;
+    private string _selectedProfileRenameText = string.Empty;
     private string? _selectedSourcePortPath;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -44,6 +48,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var loadResult = _persistence.Load();
         _store = new LaunchInputsStore(loadResult.State);
         LoadProfilesFromConfig(loadResult.State);
+        IsFileLibraryPaneCollapsed = loadResult.State.IsFileLibraryPaneCollapsed;
         IsSourcePortSectionCollapsed = loadResult.State.IsSourcePortSectionCollapsed;
         IsIwadSectionCollapsed = loadResult.State.IsIwadSectionCollapsed;
         IsModSectionCollapsed = loadResult.State.IsModSectionCollapsed;
@@ -92,11 +97,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool HasSelectedProfile => !string.IsNullOrWhiteSpace(SelectedProfileId);
 
-    public bool HasActiveProfileRename => ProfileRows.Any(row => row.IsRenaming);
+    public bool HasActiveProfileRename => IsSelectedProfileRenameVisible;
 
-    public string? RenamingProfileId => ProfileRows.FirstOrDefault(row => row.IsRenaming)?.Id;
+    public string? RenamingProfileId => IsSelectedProfileRenameVisible ? SelectedProfileId : null;
 
-    public bool CanCreateProfile => !string.IsNullOrWhiteSpace(SelectedSourcePortPath) && !string.IsNullOrWhiteSpace(SelectedIwadPath);
+    public bool CanCreateProfile => true;
+
+    public bool CanRenameSelectedProfile => HasSelectedProfile;
 
     public bool CanLaunch
     {
@@ -160,9 +167,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _selectedProfileId = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasSelectedProfile));
+            OnPropertyChanged(nameof(CanRenameSelectedProfile));
             OnPropertyChanged(nameof(CanLaunch));
             OnPropertyChanged(nameof(SelectedProfileName));
             OnPropertyChanged(nameof(SelectedProfileStatusText));
+
+            if (!IsSelectedProfileRenameVisible)
+            {
+                SelectedProfileRenameText = GetSelectedProfile()?.Name ?? string.Empty;
+            }
         }
     }
 
@@ -185,6 +198,42 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool HasMessage => !string.IsNullOrWhiteSpace(MessageText);
 
     public bool HasPendingDeleteConfirmation => !string.IsNullOrWhiteSpace(_pendingDeleteProfileId);
+
+    public bool IsFileLibraryPaneCollapsed
+    {
+        get => _isFileLibraryPaneCollapsed;
+        private set
+        {
+            if (_isFileLibraryPaneCollapsed == value)
+            {
+                return;
+            }
+
+            _isFileLibraryPaneCollapsed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsFileLibraryPaneExpanded));
+            OnPropertyChanged(nameof(FileLibraryPaneToggleText));
+            OnPropertyChanged(nameof(ProfilePaneColumnWidth));
+            OnPropertyChanged(nameof(PaneSpacerColumnWidth));
+            OnPropertyChanged(nameof(FileLibraryPaneColumnWidth));
+        }
+    }
+
+    public bool IsFileLibraryPaneExpanded => !IsFileLibraryPaneCollapsed;
+
+    public string FileLibraryPaneToggleText => IsFileLibraryPaneCollapsed ? "Expand" : "Collapse";
+
+    public GridLength ProfilePaneColumnWidth => IsFileLibraryPaneCollapsed
+        ? new GridLength(1, GridUnitType.Star)
+        : new GridLength(320);
+
+    public GridLength PaneSpacerColumnWidth => IsFileLibraryPaneCollapsed
+        ? new GridLength(0)
+        : new GridLength(16);
+
+    public GridLength FileLibraryPaneColumnWidth => IsFileLibraryPaneCollapsed
+        ? new GridLength(0)
+        : new GridLength(1, GridUnitType.Star);
 
     public bool IsSourcePortSectionCollapsed
     {
@@ -251,6 +300,41 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string SelectedProfileName => GetSelectedProfile()?.Name ?? "No Profile Selected";
 
+    public string SelectedProfileRenameText
+    {
+        get => _selectedProfileRenameText;
+        set
+        {
+            if (_selectedProfileRenameText == value)
+            {
+                return;
+            }
+
+            _selectedProfileRenameText = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsSelectedProfileDisplayVisible => !IsSelectedProfileRenameVisible;
+
+    public bool IsSelectedProfileRenameVisible
+    {
+        get => _isSelectedProfileRenameVisible;
+        private set
+        {
+            if (_isSelectedProfileRenameVisible == value)
+            {
+                return;
+            }
+
+            _isSelectedProfileRenameVisible = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsSelectedProfileDisplayVisible));
+            OnPropertyChanged(nameof(HasActiveProfileRename));
+            OnPropertyChanged(nameof(RenamingProfileId));
+        }
+    }
+
     public string SelectedProfileStatusText
     {
         get
@@ -295,6 +379,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void ToggleSourcePortSectionCollapsed()
     {
         IsSourcePortSectionCollapsed = !IsSourcePortSectionCollapsed;
+        PersistState();
+    }
+
+    public void ToggleFileLibraryPaneCollapsed()
+    {
+        IsFileLibraryPaneCollapsed = !IsFileLibraryPaneCollapsed;
         PersistState();
     }
 
@@ -426,11 +516,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public void CreateNewProfile()
     {
-        if (!CanCreateProfile || string.IsNullOrWhiteSpace(SelectedSourcePortPath) || string.IsNullOrWhiteSpace(SelectedIwadPath))
-        {
-            return;
-        }
-
         CancelRename();
         ClearPendingDeleteConfirmation();
 
@@ -445,12 +530,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         _profiles.Add(profile);
         SelectedProfileId = profile.Id;
+        IsFileLibraryPaneCollapsed = false;
         RefreshProfileRows();
         OnPropertyChanged(nameof(HasProfiles));
         OnPropertyChanged(nameof(CanLaunch));
         OnPropertyChanged(nameof(SelectedProfileName));
         OnPropertyChanged(nameof(SelectedProfileStatusText));
         PersistState();
+    }
+
+    public void BeginRenameSelectedProfile()
+    {
+        var selectedProfileId = SelectedProfileId;
+        if (string.IsNullOrWhiteSpace(selectedProfileId))
+        {
+            return;
+        }
+
+        BeginRenameProfile(selectedProfileId);
     }
 
     public void BeginRenameProfile(string profileId)
@@ -473,8 +570,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             return;
         }
 
-        row.IsRenaming = true;
-        row.RenameText = row.Name;
+        IsSelectedProfileRenameVisible = true;
+        SelectedProfileRenameText = row.Name;
         ClearInformationalMessage();
         OnPropertyChanged(nameof(CanLaunch));
         OnPropertyChanged(nameof(SelectedProfileStatusText));
@@ -483,24 +580,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public void UpdateRenameText(string profileId, string? text)
     {
-        var row = FindProfileRow(profileId);
-        if (row is null || !row.IsRenaming)
+        if (!IsSelectedProfileRenameVisible
+            || !string.Equals(profileId, SelectedProfileId, StringComparison.Ordinal))
         {
             return;
         }
 
-        row.RenameText = text ?? string.Empty;
+        SelectedProfileRenameText = text ?? string.Empty;
     }
 
     public void CommitRename(string profileId)
     {
         var row = FindProfileRow(profileId);
-        if (row is null || !row.IsRenaming)
+        if (row is null
+            || !IsSelectedProfileRenameVisible
+            || !string.Equals(profileId, SelectedProfileId, StringComparison.Ordinal))
         {
             return;
         }
 
-        var proposedName = row.RenameText.Trim();
+        var proposedName = SelectedProfileRenameText.Trim();
         if (string.IsNullOrWhiteSpace(proposedName))
         {
             SetInformationalMessage("Profile name is required.");
@@ -531,8 +630,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             SelectedModPaths = [.. existingProfile.SelectedModPaths]
         };
 
-        row.IsRenaming = false;
-        row.RenameText = proposedName;
+        IsSelectedProfileRenameVisible = false;
+        SelectedProfileRenameText = proposedName;
         ClearInformationalMessage();
         RefreshProfileRows();
         OnPropertyChanged(nameof(SelectedProfileName));
@@ -542,26 +641,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool CancelRename()
     {
-        var canceledAny = false;
-
-        foreach (var row in ProfileRows)
+        if (!IsSelectedProfileRenameVisible)
         {
-            if (!row.IsRenaming)
-            {
-                continue;
-            }
-
-            canceledAny = true;
-            row.IsRenaming = false;
-            row.RenameText = row.Name;
+            return false;
         }
 
-        if (canceledAny)
-        {
-            ClearInformationalMessage();
-        }
-
-        return canceledAny;
+        IsSelectedProfileRenameVisible = false;
+        SelectedProfileRenameText = GetSelectedProfile()?.Name ?? string.Empty;
+        ClearInformationalMessage();
+        return true;
     }
 
     public void RequestDeleteProfile(string profileId)
@@ -613,6 +701,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void CancelDeleteConfirmation()
     {
         ClearPendingDeleteConfirmation();
+    }
+
+    public void LaunchProfile(string profileId)
+    {
+        CancelRename();
+
+        if (!TrySelectProfile(profileId))
+        {
+            return;
+        }
+
+        ClearPendingDeleteConfirmation();
+        HydrateSelectionsFromSelectedProfile();
+        RefreshRows();
+        RefreshProfileRows();
+        OnPropertyChanged(nameof(CanLaunch));
+        OnPropertyChanged(nameof(SelectedProfileStatusText));
+        PersistState();
+        LaunchSourcePort();
     }
 
     public void LaunchSourcePort()
@@ -702,12 +809,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             row.Name = profile.Name;
             row.IsSelected = string.Equals(profile.Id, SelectedProfileId, StringComparison.Ordinal);
             row.IsInvalid = !validity.IsValid;
+            row.CanLaunchProfile = validity.IsValid;
+            row.ValidMessage = validity.IsValid ? "VALID" : string.Empty;
             row.InvalidReason = validity.Reason;
-
-            if (!row.IsRenaming)
-            {
-                row.RenameText = row.Name;
-            }
 
             ProfileRows.Add(row);
         }
@@ -1147,6 +1251,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             SourcePorts = [.. snapshot.SourcePorts],
             Profiles = [.. _profiles.Select(CloneProfile)],
             SelectedProfileId = SelectedProfileId,
+            IsFileLibraryPaneCollapsed = IsFileLibraryPaneCollapsed,
             IsSourcePortSectionCollapsed = IsSourcePortSectionCollapsed,
             SelectedSourcePortPath = null,
             Iwads = [.. snapshot.Iwads],
@@ -1220,19 +1325,19 @@ public sealed class SelectablePathRow
 
 public sealed class ProfileListItem : INotifyPropertyChanged
 {
+    private bool _canLaunchProfile;
     private bool _isInvalid;
-    private bool _isRenaming;
     private bool _isSelected;
     private string _invalidReason;
     private string _name;
-    private string _renameText;
+    private string _validMessage;
 
     public ProfileListItem(string id, string name)
     {
         Id = id;
         _name = name;
-        _renameText = name;
         _invalidReason = string.Empty;
+        _validMessage = string.Empty;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -1269,6 +1374,21 @@ public sealed class ProfileListItem : INotifyPropertyChanged
         }
     }
 
+    public bool CanLaunchProfile
+    {
+        get => _canLaunchProfile;
+        set
+        {
+            if (_canLaunchProfile == value)
+            {
+                return;
+            }
+
+            _canLaunchProfile = value;
+            OnPropertyChanged();
+        }
+    }
+
     public bool IsInvalid
     {
         get => _isInvalid;
@@ -1282,6 +1402,11 @@ public sealed class ProfileListItem : INotifyPropertyChanged
             _isInvalid = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasInvalidReason));
+            OnPropertyChanged(nameof(HasValidMessage));
+            OnPropertyChanged(nameof(HasStatusBadge));
+            OnPropertyChanged(nameof(StatusBadgeText));
+            OnPropertyChanged(nameof(StatusBadgeBackground));
+            OnPropertyChanged(nameof(StatusBadgeForeground));
         }
     }
 
@@ -1301,43 +1426,37 @@ public sealed class ProfileListItem : INotifyPropertyChanged
         }
     }
 
-    public bool IsRenaming
+    public string ValidMessage
     {
-        get => _isRenaming;
+        get => _validMessage;
         set
         {
-            if (_isRenaming == value)
+            if (_validMessage == value)
             {
                 return;
             }
 
-            _isRenaming = value;
+            _validMessage = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(IsDisplayVisible));
-            OnPropertyChanged(nameof(IsRenameVisible));
+            OnPropertyChanged(nameof(HasValidMessage));
+            OnPropertyChanged(nameof(HasStatusBadge));
+            OnPropertyChanged(nameof(StatusBadgeText));
+            OnPropertyChanged(nameof(StatusBadgeBackground));
+            OnPropertyChanged(nameof(StatusBadgeForeground));
         }
     }
-
-    public string RenameText
-    {
-        get => _renameText;
-        set
-        {
-            if (_renameText == value)
-            {
-                return;
-            }
-
-            _renameText = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public bool IsDisplayVisible => !IsRenaming;
-
-    public bool IsRenameVisible => IsRenaming;
 
     public bool HasInvalidReason => IsInvalid && !string.IsNullOrWhiteSpace(InvalidReason);
+
+    public bool HasValidMessage => !IsInvalid && !string.IsNullOrWhiteSpace(ValidMessage);
+
+    public bool HasStatusBadge => IsInvalid || HasValidMessage;
+
+    public string StatusBadgeText => IsInvalid ? "INVALID" : ValidMessage;
+
+    public string StatusBadgeBackground => IsInvalid ? "#44311d" : "#113a2f";
+
+    public string StatusBadgeForeground => IsInvalid ? "#f59e0b" : "#10b981";
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
