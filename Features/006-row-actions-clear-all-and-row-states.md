@@ -1,14 +1,14 @@
-# Feature 006 - Row Action Alignment, Section Clear-All, and Row Interaction States
+# Feature 006 - Section Collapse Layout and Row Interaction States
 
 ## Goal
-Align row-level and section-level actions into a shared right-hand action-column pattern, add deterministic Source Port/IWAD/Mod clear-all actions, and provide distinct hover/selected/selected+hover row visuals in light and dark themes.
+Align row-level and section-level actions into a shared right-hand action-column pattern, move collapse controls inline with section labels, and provide distinct hover/selected/selected+hover row visuals in light and dark themes.
 
 ## In Scope
 - Row-level `Remove` button alignment for IWAD and Mod rows.
 - Row-level `Remove` button alignment for Source Port, IWAD, and Mod rows.
-- Section-level `Clear All` action for Source Port list.
-- Section-level `Clear All` actions for IWAD and Mod lists.
-- Clear-all enablement rules based on list emptiness.
+- Section-level collapse / expand toggle for Source Port list.
+- Section-level collapse / expand toggles for IWAD and Mod lists.
+- Persisted collapse state for Source Port, IWAD, and Mod sections.
 - Row visual states:
   - hover
   - selected
@@ -16,7 +16,6 @@ Align row-level and section-level actions into a shared right-hand action-column
 - Theme-aware row-state styling for both light and dark variants.
 
 ## Out Of Scope
-- Changes to source-port clear behavior.
 - Changes to file allowlists, dedupe, or drop processing rules.
 - Changes to selection semantics from prior features.
 - Changes to command-preview argument format or launch behavior.
@@ -24,11 +23,11 @@ Align row-level and section-level actions into a shared right-hand action-column
 ## Definitions
 - Shared right-hand action column:
   - The single right-side action column used by row-level `Remove` buttons within a section.
-  - The section `Clear All` button for that section must align to this same column.
-- Section descriptor row:
-  - The horizontal row containing allowed-file/descriptive text for a section.
+  - The section header action group for that section must align to this same column, with `Collapse` / `Expand` inline to the right of the section label.
 - Selected + hover state:
   - The visual state when a row is selected and currently pointer-hovered.
+- Collapsed section:
+  - A section state where only the section header row remains visible and the descriptor text, drop zone, and input rows are hidden.
 
 ## Rules
 ### Row-Level Remove Alignment
@@ -36,33 +35,18 @@ Align row-level and section-level actions into a shared right-hand action-column
 - Row `Remove` buttons remain vertically centered within each row.
 - Existing remove behavior is unchanged.
 
-### Source Port Clear Layout
-- Source Port section provides a `Clear All` action using the existing button label.
-- Activating Source Port `Clear All` removes all source-port entries.
-- Source Port `Clear All` appears on the same horizontal row as Source Port descriptive/allowed-file text.
-- Source Port `Clear All` aligns to the same shared right-hand action column pattern used by row-level `Remove` buttons in Source Port.
-- Source Port `Clear All` is disabled when no source-port entries exist.
-- Source Port `Clear All` is not rendered on a separate line below Source Port descriptive text.
-
-### IWAD Clear All
-- IWAD section provides a `Clear All` action using the existing button label.
-- Activating IWAD `Clear All` removes all IWAD entries.
-- IWAD `Clear All` appears on the same horizontal row as IWAD descriptive/allowed-file text.
-- IWAD `Clear All` aligns to the same shared right-hand action column as IWAD row `Remove` buttons.
-- IWAD `Clear All` is disabled when no IWAD entries exist.
-
-### Mod Clear All
-- Mod section provides a `Clear All` action using the existing button label.
-- Activating Mod `Clear All` removes all Mod entries.
-- Mod `Clear All` appears on the same horizontal row as Mod descriptive/allowed-file text.
-- Mod `Clear All` aligns to the same shared right-hand action column as Mod row `Remove` buttons.
-- Mod `Clear All` is disabled when no Mod entries exist.
-
-### Persistence and Selection Consistency
-- IWAD/Mod clear-all actions persist immediately like other mutations.
-- Clearing IWAD entries clears selected IWAD state when present.
-- Clearing Mod entries removes all selected Mod paths.
-- Existing add/remove/selection persistence behavior remains unchanged.
+### Section Collapse / Expand
+- Source Port, IWAD, and Mod sections each provide a section-header toggle button.
+- The toggle button label is `Collapse` when that section's rows are currently visible.
+- The toggle button label is `Expand` when that section's rows are currently hidden.
+- The toggle button appears inline with the section label on the same header row.
+- Activating the toggle hides or shows that section's body:
+  - descriptive text
+  - drop zone
+  - input rows
+- Collapse state is persisted independently for Source Port, IWAD, and Mod sections.
+- Collapse state is shared-library UI state and is not tied to any selected profile.
+- Configs that do not contain persisted collapse fields load with all three sections expanded.
 
 ### Row Interaction Visual States
 - Hovering a non-selected row shows a visible hover state.
@@ -79,29 +63,18 @@ When the section is rendered
 Then each `Remove` button is aligned to its section's shared right-hand action column.
 And each `Remove` button remains vertically centered in its row.
 
-### Section clear-all behavior and placement
-Given IWAD or Mod entries exist
-When `Clear All` is activated for that section
-Then all entries in that section are removed.
-And the `Clear All` button is on the same horizontal line as that section's descriptive/allowed-file text.
-And the `Clear All` button is aligned to the same right-hand action column used by row-level `Remove` buttons.
-And the `Clear All` button is not rendered on a separate line below the descriptive text.
+### Section collapse toggle behavior and placement
+Given any Source Port, IWAD, or Mod section is rendered
+When the section header is displayed
+Then that section shows a `Collapse` or `Expand` button inline with the section label.
+And activating the toggle hides or shows that section's body.
+And a collapsed section renders only the section header row.
 
-### Source Port clear behavior and placement
-Given the Source Port section is rendered
-When the section is displayed
-Then Source Port `Clear All` appears on the same horizontal line as Source Port descriptive text.
-And Source Port `Clear All` is right-aligned using the same section action-column layout pattern as IWAD/Mod clear actions.
-And Source Port `Clear All` is not rendered on a separate line below Source Port descriptive text.
-And Source Port `Clear All` remains disabled when no source-port entries exist.
-
-### Clear-all empty-state gating
-Given no IWAD entries
-When IWAD section is rendered
-Then IWAD `Clear All` is disabled.
-And given no Mod entries
-When Mod section is rendered
-Then Mod `Clear All` is disabled.
+### Persisted collapse state
+Given a section has been collapsed or expanded
+When the app persists state and restarts
+Then each section restores its last saved collapsed or expanded state.
+And configs without the new collapse fields start with all sections expanded.
 
 ### Row hover and selected visual distinctions
 Given an IWAD or Mod row

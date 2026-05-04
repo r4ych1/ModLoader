@@ -20,6 +20,7 @@ public partial class MainWindow : Window
         _viewModel = new MainWindowViewModel(persistence);
 
         InitializeComponent();
+        AddHandler(InputElement.PointerPressedEvent, OnWindowPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         DataContext = _viewModel;
     }
 
@@ -52,9 +53,40 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void OnClearAllSourcePortsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void OnNewProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        _viewModel.ClearAllSourcePorts();
+        _viewModel.CreateNewProfile();
+    }
+
+    private void OnDeleteProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string profileId)
+        {
+            _viewModel.RequestDeleteProfile(profileId);
+        }
+    }
+
+    private void OnRenameProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string profileId)
+        {
+            _viewModel.BeginRenameProfile(profileId);
+        }
+    }
+
+    private void OnConfirmDeleteProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.ConfirmDeleteProfile();
+    }
+
+    private void OnCancelDeleteProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.CancelDeleteConfirmation();
+    }
+
+    private void OnToggleSourcePortSectionCollapsedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _viewModel.ToggleSourcePortSectionCollapsed();
     }
 
     private void OnRemoveSourcePortClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -81,19 +113,89 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnClearAllIwadsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void OnToggleIwadSectionCollapsedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        _viewModel.ClearAllIwads();
+        _viewModel.ToggleIwadSectionCollapsed();
     }
 
-    private void OnClearAllModsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void OnToggleModSectionCollapsedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        _viewModel.ClearAllMods();
+        _viewModel.ToggleModSectionCollapsed();
+    }
+
+    private void OnWindowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!_viewModel.HasActiveProfileRename)
+        {
+            return;
+        }
+
+        if (IsWithinActiveRenameTextBox(e.Source))
+        {
+            return;
+        }
+
+        if (_viewModel.CancelRename())
+        {
+            e.Handled = true;
+        }
+    }
+
+    private void OnProfileRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.ClickCount > 1 || IsFromInteractiveChild(e.Source))
+        {
+            return;
+        }
+
+        if (sender is Border border && border.Tag is string profileId)
+        {
+            _viewModel.ToggleProfileSelection(profileId);
+            e.Handled = true;
+        }
+    }
+
+    private void OnProfileRenameKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox textBox || textBox.Tag is not string profileId)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Enter)
+        {
+            _viewModel.CommitRename(profileId);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            _viewModel.CancelRename();
+            e.Handled = true;
+        }
+    }
+
+    private void OnProfileRenameLostFocus(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is TextBox textBox && textBox.Tag is string profileId && string.Equals(_viewModel.RenamingProfileId, profileId, StringComparison.Ordinal))
+        {
+            _viewModel.CancelRename();
+        }
+    }
+
+    private void OnProfileRenameTextBoxLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is not TextBox textBox)
+        {
+            return;
+        }
+
+        textBox.Focus();
+        textBox.SelectAll();
     }
 
     private void OnSourcePortRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (IsFromButton(e.Source))
+        if (IsFromInteractiveChild(e.Source))
         {
             return;
         }
@@ -107,7 +209,7 @@ public partial class MainWindow : Window
 
     private void OnIwadRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (IsFromButton(e.Source))
+        if (IsFromInteractiveChild(e.Source))
         {
             return;
         }
@@ -121,7 +223,7 @@ public partial class MainWindow : Window
 
     private void OnModRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (IsFromButton(e.Source))
+        if (IsFromInteractiveChild(e.Source))
         {
             return;
         }
@@ -164,9 +266,9 @@ public partial class MainWindow : Window
         return localPaths;
     }
 
-    private static bool IsFromButton(object? source)
+    private static bool IsFromInteractiveChild(object? source)
     {
-        if (source is Button)
+        if (source is Button or TextBox)
         {
             return true;
         }
@@ -178,12 +280,49 @@ public partial class MainWindow : Window
 
         foreach (var ancestor in visual.GetVisualAncestors())
         {
-            if (ancestor is Button)
+            if (ancestor is Button or TextBox)
             {
                 return true;
             }
         }
 
+        return false;
+    }
+
+    private bool IsWithinActiveRenameTextBox(object? source)
+    {
+        var activeRenameProfileId = _viewModel.RenamingProfileId;
+        if (string.IsNullOrWhiteSpace(activeRenameProfileId))
+        {
+            return false;
+        }
+
+        return TryGetAncestorTextBox(source, out var textBox)
+            && textBox.Tag is string profileId
+            && string.Equals(profileId, activeRenameProfileId, StringComparison.Ordinal);
+    }
+
+    private static bool TryGetAncestorTextBox(object? source, out TextBox textBox)
+    {
+        if (source is TextBox directTextBox)
+        {
+            textBox = directTextBox;
+            return true;
+        }
+
+        if (source is Avalonia.Visual visual)
+        {
+            foreach (var ancestor in visual.GetVisualAncestors())
+            {
+                if (ancestor is TextBox ancestorTextBox)
+                {
+                    textBox = ancestorTextBox;
+                    return true;
+                }
+            }
+        }
+
+        textBox = null!;
         return false;
     }
 }

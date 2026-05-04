@@ -1,7 +1,7 @@
 # Feature 004 - Fixed Command Preview Footer and Selection-Synchronized Mod Ordering
 
 ## Goal
-Provide a fixed footer that shows a live generated launch-argument preview and keep Mod list ordering synchronized with selected Mod load order.
+Provide a fixed footer that shows a live generated launch-argument preview and keep displayed Mod ordering synchronized with selected Mod load order without rewriting shared-library persistence.
 
 ## In Scope
 - Fixed, non-scrolling footer preview text area.
@@ -13,16 +13,16 @@ Provide a fixed footer that shows a live generated launch-argument preview and k
   - Quote a filename only when it contains spaces.
 - Wrapped preview text behavior:
   - Preview text wraps within footer bounds to avoid horizontal overflow.
-- Mod ordering synchronized to selection sequence:
+- Mod display ordering synchronized to selection sequence:
   - Selected Mods appear first in the same order as selection sequence.
-  - Unselected Mods remain after selected Mods in existing relative order.
+  - Unselected Mods remain after selected Mods in alphabetical filename order.
+- Detached-state default Mod ordering:
+  - When no profile is selected, Mod rows default to alphabetical filename order.
+- Profile-backed selected-mod persistence:
+  - `ProfileConfig.SelectedModPaths` is the persisted authority for per-profile selected-mod order.
 - Deselection compaction:
   - Removing a Mod from selection removes it from selected sequence and keeps remaining selected sequence order stable.
-- Immediate persistence when selection-triggered mod reordering changes state.
-- Startup alignment:
-  - Restore persisted selection state.
-  - Apply selection-synchronized mod ordering.
-  - Persist immediately if restored mod ordering differs from required ordering.
+- Immediate persistence when selection changes a selected profile's mod references.
 
 ## Out Of Scope
 - Launch execution.
@@ -36,7 +36,7 @@ Provide a fixed footer that shows a live generated launch-argument preview and k
 - Selection sequence:
   - Ordered list of currently selected Mod paths based on the sequence of successful selections.
 - Selection-synchronized mod ordering:
-  - Mod list order used by UI and persisted config where selected Mods appear first in selection sequence, followed by remaining Mods in relative prior order.
+  - Mod row order used by the UI where selected Mods appear first in selection sequence, followed by remaining Mods in alphabetical filename order.
 
 ## Rules
 ### Footer Preview Rendering
@@ -70,14 +70,21 @@ Provide a fixed footer that shows a live generated launch-argument preview and k
 ### Mod Selection Ordering Behavior
 - Selecting an unselected Mod appends that Mod path to the end of selected sequence.
 - Deselecting a selected Mod removes only that Mod path from selected sequence.
-- After every Mod selection toggle, Mod list order is rebuilt as:
+- After every Mod selection toggle, Mod row order is rebuilt as:
   - all selected Mod paths in selected sequence order
-  - then all non-selected Mod paths in their prior relative order
+  - then all non-selected Mod paths sorted by filename case-insensitively, with full path as deterministic tie-breaker
+- When no profile is selected:
+  - detached Mod rows start in alphabetical filename order
+  - selection toggles may temporarily move selected Mods to the top for the current session
+  - detached selected-mod ordering is not restored on restart
+- When a profile is selected:
+  - selected-mod order persists through that profile's `SelectedModPaths`
+  - selection toggles do not rewrite top-level shared-library `Mods` ordering
 
 ### Persistence
 - After Mod selection toggles, persist immediately.
-- Persisted `Mods` ordering matches current selection-synchronized mod ordering.
-- Startup load persists immediately when selection-synchronized ordering changes persisted Mod order.
+- Persisted `Mods` ordering remains the shared library collection order.
+- Persisted per-profile selected-mod order is stored in `ProfileConfig.SelectedModPaths`.
 
 ## Acceptance Criteria
 ### Empty preview
@@ -113,8 +120,8 @@ Then text wraps within the preview area instead of overflowing horizontally.
 ### Selection-synchronized Mod list ordering
 Given at least three Mod rows
 When rows are selected in a specific sequence
-Then Mod list order moves selected rows to the top in that same sequence.
-And non-selected rows remain afterward preserving their prior relative order.
+Then Mod row order moves selected rows to the top in that same sequence.
+And non-selected rows remain afterward in alphabetical filename order.
 
 ### Deselection compaction
 Given multiple selected Mod rows
@@ -123,13 +130,15 @@ Then that row is removed from selected sequence.
 And remaining selected Mod order is unchanged.
 And Mod list remains continuous without gaps.
 
-### Immediate persistence of reorder
-Given selected Mod rows cause a Mod list reorder
+### Detached-state temporary reordering
+Given no profile is selected and Mod rows exist
 When selection toggle is applied
-Then persisted config updates immediately with reordered `Mods`.
+Then selected Mod rows move to the top in current selection sequence.
+And unselected Mod rows remain alphabetized afterward.
+And persisted config does not store detached selected Mod ordering for restart.
 
-### Startup reorder persistence
-Given valid config with selected Mod paths and `Mods` order not matching selection-synchronized ordering
-When app starts
-Then in-memory Mod order is rebuilt to selection-synchronized order.
-And reordered state is persisted immediately.
+### Profile-backed selected-mod persistence
+Given a selected profile with Mod rows
+When Mod selection changes
+Then that profile's `SelectedModPaths` persists the selected sequence.
+And top-level shared-library `Mods` ordering is unchanged.

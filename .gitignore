@@ -49,6 +49,7 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+*.log
 *.bak
 
 # Avalonia-specific
@@ -58,6 +59,8 @@ Thumbs.db
 
 # .NET SDK artifacts
 .dotnet/
+.appdata/
+.localappdata/
 
 # Node modules (if using npm for web assets)
 node_modules/

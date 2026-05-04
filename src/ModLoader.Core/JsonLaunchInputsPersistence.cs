@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 
 namespace ModLoader.Core;
@@ -66,9 +67,14 @@ public sealed class JsonLaunchInputsPersistence : ILaunchInputsPersistence
         var stableConfig = new LaunchInputsConfig
         {
             SourcePorts = [.. (config.SourcePorts ?? [])],
+            Profiles = [.. (config.Profiles ?? []).Select(CloneProfile)],
+            SelectedProfileId = config.SelectedProfileId,
+            IsSourcePortSectionCollapsed = config.IsSourcePortSectionCollapsed,
             SelectedSourcePortPath = config.SelectedSourcePortPath,
             Iwads = [.. (config.Iwads ?? [])],
+            IsIwadSectionCollapsed = config.IsIwadSectionCollapsed,
             Mods = [.. (config.Mods ?? [])],
+            IsModSectionCollapsed = config.IsModSectionCollapsed,
             SelectedIwadPath = config.SelectedIwadPath,
             SelectedModPaths = [.. (config.SelectedModPaths ?? [])]
         };
@@ -123,9 +129,14 @@ public sealed class JsonLaunchInputsPersistence : ILaunchInputsPersistence
             return new LaunchInputsConfig
             {
                 SourcePorts = [legacySourcePortPath],
+                Profiles = [.. loadedConfig.Profiles],
+                SelectedProfileId = loadedConfig.SelectedProfileId,
+                IsSourcePortSectionCollapsed = loadedConfig.IsSourcePortSectionCollapsed,
                 SelectedSourcePortPath = legacySourcePortPath,
                 Iwads = [.. loadedConfig.Iwads],
+                IsIwadSectionCollapsed = loadedConfig.IsIwadSectionCollapsed,
                 Mods = [.. loadedConfig.Mods],
+                IsModSectionCollapsed = loadedConfig.IsModSectionCollapsed,
                 SelectedIwadPath = loadedConfig.SelectedIwadPath,
                 SelectedModPaths = [.. loadedConfig.SelectedModPaths]
             };
@@ -156,5 +167,17 @@ public sealed class JsonLaunchInputsPersistence : ILaunchInputsPersistence
 
             suffix++;
         }
+    }
+
+    private static ProfileConfig CloneProfile(ProfileConfig profile)
+    {
+        return new ProfileConfig
+        {
+            Id = profile.Id,
+            Name = profile.Name,
+            SourcePortPath = profile.SourcePortPath,
+            IwadPath = profile.IwadPath,
+            SelectedModPaths = [.. (profile.SelectedModPaths ?? [])]
+        };
     }
 }
