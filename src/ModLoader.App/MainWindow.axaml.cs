@@ -68,10 +68,7 @@ public partial class MainWindow : Window
 
     private void OnRenameProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (sender is Button button && button.Tag is string profileId)
-        {
-            _viewModel.BeginRenameProfile(profileId);
-        }
+        _viewModel.BeginRenameSelectedProfile();
     }
 
     private void OnLaunchProfileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

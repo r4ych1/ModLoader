@@ -39,14 +39,14 @@ This repository follows feature-scoped delivery. Behavior is only guaranteed whe
   - Updates command preview to include selected source-port filename before `-iwad` / `-file` segments.
   - Authoritative spec: `Features/007-source-port-list-and-mod-zip.md`.
 - Feature 008: Selection-based profile workspace.
-  - Adds saved profiles as the primary launch model in a two-pane workspace: a pinned profile list on the left and independently scrolling shared file library on the right, with `New Profile` in the right-pane library header.
+  - Adds saved profiles as the primary launch model in a two-pane workspace: a pinned profile list on the left and independently scrolling shared file library on the right, with `New Profile` in the left profile-management header.
   - Profiles persist source port, IWAD, and ordered mod references to the shared library and are the only launchable unit.
-  - Profile rows expose explicit `Launch`, `Rename`, and `Delete` actions instead of double-click rename, and outside-click rename exit cancels rather than saves.
+  - Profile rows expose explicit `Launch` and `Delete` actions plus a shared row-status badge treatment for valid and invalid states, while selected-profile rename lives in the right-pane selected-profile header and outside-click rename exit cancels rather than saves.
   - Profile edits auto-save immediately through file-library selection changes; row launch actions select and run that specific valid saved profile.
   - Authoritative spec: `Features/008-profile-management.md`.
 - Feature 009: Collapsible file library pane.
-  - Wraps the shared file library in its own right-side section with a pane-level collapse control.
-  - Collapsing the file library reduces it to a narrow right-edge strip that preserves an expand affordance and label while the left profile pane expands to fill the remaining workspace width.
+  - Wraps the shared file library in its own right-side section with a pane-level collapse control that lives in the left profile-management header.
+  - Collapsing the file library removes the right pane from view and collapses the pane gap while the left profile pane expands to fill the remaining workspace width.
   - File-library pane collapse state persists across restart without changing profile, launch, or inner library-section behavior.
   - Authoritative spec: `Features/009-file-library-pane-collapse.md`.
 

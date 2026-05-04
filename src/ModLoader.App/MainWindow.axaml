@@ -128,7 +128,7 @@
     <Grid Margin="20">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="{Binding ProfilePaneColumnWidth}" />
-        <ColumnDefinition Width="16" />
+        <ColumnDefinition Width="{Binding PaneSpacerColumnWidth}" />
         <ColumnDefinition Width="{Binding FileLibraryPaneColumnWidth}" />
       </Grid.ColumnDefinitions>
 
@@ -139,14 +139,34 @@
               Background="#0f172a"
               Padding="12">
         <Grid RowDefinitions="Auto,*">
-          <StackPanel Grid.Row="0" Spacing="2">
-            <TextBlock FontSize="18"
+          <Grid Grid.Row="0"
+                RowDefinitions="Auto,Auto"
+                ColumnDefinitions="*,Auto,Auto">
+            <TextBlock Grid.Row="0"
+                       Grid.Column="0"
+                       FontSize="18"
                        FontWeight="Bold"
                        Foreground="#e5e7eb"
+                       VerticalAlignment="Center"
                        Text="Profiles" />
-            <TextBlock Foreground="#94a3b8"
-                       Text="Select, rename, or delete a launch profile from the saved profile list." />
-          </StackPanel>
+            <Button Grid.Row="0"
+                    Grid.Column="1"
+                    Content="New Profile"
+                    HorizontalAlignment="Right"
+                    Click="OnNewProfileClicked" />
+            <Button Grid.Row="0"
+                    Grid.Column="2"
+                    Content="{Binding FileLibraryPaneToggleText}"
+                    HorizontalAlignment="Right"
+                    Margin="8,0,0,0"
+                    Click="OnToggleFileLibraryPaneCollapsedClicked" />
+            <TextBlock Grid.Row="1"
+                       Grid.Column="0"
+                       Grid.ColumnSpan="3"
+                       Foreground="#94a3b8"
+                       Margin="0,2,0,0"
+                       Text="Select, launch, or delete a launch profile from the saved profile list." />
+          </Grid>
 
           <ScrollViewer Grid.Row="1"
                         Margin="0,12,0,0"
@@ -162,35 +182,26 @@
                           PointerPressed="OnProfileRowPointerPressed">
                     <Grid ColumnDefinitions="*,Auto">
                       <StackPanel Grid.Column="0" Spacing="6">
-                        <StackPanel IsVisible="{Binding IsDisplayVisible}" Spacing="4">
-                          <TextBlock FontWeight="SemiBold"
-                                     Text="{Binding Name}" />
-                          <TextBlock IsVisible="{Binding HasInvalidReason}"
-                                     Foreground="#f59e0b"
-                                     TextWrapping="Wrap"
-                                     Text="{Binding InvalidReason}" />
-                        </StackPanel>
-                        <TextBox IsVisible="{Binding IsRenameVisible}"
-                                 Tag="{Binding Id}"
-                                 Text="{Binding RenameText, Mode=TwoWay}"
-                                 KeyDown="OnProfileRenameKeyDown"
-                                 LostFocus="OnProfileRenameLostFocus"
-                                 Loaded="OnProfileRenameTextBoxLoaded" />
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="{Binding Name}" />
+                        <TextBlock IsVisible="{Binding HasInvalidReason}"
+                                   Foreground="#f59e0b"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding InvalidReason}" />
                       </StackPanel>
 
                       <StackPanel Grid.Column="1"
-                                  IsVisible="{Binding IsDisplayVisible}"
                                   Spacing="6"
                                   Margin="8,0,0,0"
                                   VerticalAlignment="Top">
-                        <Border IsVisible="{Binding IsInvalid}"
-                                Background="#44311d"
+                        <Border IsVisible="{Binding HasStatusBadge}"
+                                Background="{Binding StatusBadgeBackground}"
                                 CornerRadius="999"
                                 Padding="8,2">
-                          <TextBlock Foreground="#f59e0b"
+                          <TextBlock Foreground="{Binding StatusBadgeForeground}"
                                      FontSize="11"
                                      FontWeight="Bold"
-                                     Text="INVALID" />
+                                     Text="{Binding StatusBadgeText}" />
                         </Border>
                         <StackPanel Orientation="Horizontal"
                                     Spacing="8"
@@ -199,9 +210,6 @@
                                   Tag="{Binding Id}"
                                   IsEnabled="{Binding CanLaunchProfile}"
                                   Click="OnLaunchProfileClicked" />
-                          <Button Content="Rename"
-                                  Tag="{Binding Id}"
-                                  Click="OnRenameProfileClicked" />
                           <Button Content="Delete"
                                   Tag="{Binding Id}"
                                   Click="OnDeleteProfileClicked" />
@@ -224,20 +232,12 @@
               Background="#0f172a"
               Padding="12">
         <Grid RowDefinitions="Auto,*">
-          <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
-            <Button Grid.Column="0"
-                    Content="{Binding FileLibraryPaneToggleText}"
-                    VerticalAlignment="Top"
-                    Padding="12,6"
-                    Click="OnToggleFileLibraryPaneCollapsedClicked" />
-            <TextBlock Grid.Column="1"
-                       Margin="12,0,0,0"
-                       FontSize="18"
-                       FontWeight="Bold"
-                       Foreground="#e5e7eb"
-                       VerticalAlignment="Center"
-                       Text="File Library" />
-          </Grid>
+          <TextBlock Grid.Row="0"
+                     FontSize="18"
+                     FontWeight="Bold"
+                     Foreground="#e5e7eb"
+                     VerticalAlignment="Center"
+                     Text="File Library" />
 
           <ScrollViewer Grid.Row="1"
                         Margin="0,12,0,0"
@@ -250,7 +250,9 @@
                       Background="#111827"
                       Padding="12">
                 <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Grid.Column="0" Spacing="4">
+                  <StackPanel Grid.Column="0"
+                              IsVisible="{Binding IsSelectedProfileDisplayVisible}"
+                              Spacing="4">
                     <TextBlock FontSize="18"
                                FontWeight="Bold"
                                Foreground="#e5e7eb"
@@ -259,13 +261,21 @@
                                TextWrapping="Wrap"
                                Text="{Binding SelectedProfileStatusText}" />
                   </StackPanel>
+                  <TextBox Grid.Column="0"
+                           IsVisible="{Binding IsSelectedProfileRenameVisible}"
+                           Tag="{Binding SelectedProfileId}"
+                           Text="{Binding SelectedProfileRenameText, Mode=TwoWay}"
+                           KeyDown="OnProfileRenameKeyDown"
+                           LostFocus="OnProfileRenameLostFocus"
+                           Loaded="OnProfileRenameTextBoxLoaded" />
                   <Button Grid.Column="1"
-                          Content="New Profile"
-                          IsEnabled="{Binding CanCreateProfile}"
+                          Content="Rename"
+                          IsEnabled="{Binding CanRenameSelectedProfile}"
+                          IsVisible="{Binding IsSelectedProfileDisplayVisible}"
                           HorizontalAlignment="Right"
                           VerticalAlignment="Top"
                           Margin="12,0,0,0"
-                          Click="OnNewProfileClicked" />
+                          Click="OnRenameProfileClicked" />
                 </Grid>
               </Border>
 
@@ -430,26 +440,6 @@
             </StackPanel>
           </ScrollViewer>
         </Grid>
-      </Border>
-
-      <Border Grid.Column="2"
-              IsVisible="{Binding IsFileLibraryPaneCollapsed}"
-              BorderBrush="#374151"
-              BorderThickness="1"
-              CornerRadius="8"
-              Background="#0f172a"
-              Padding="8">
-        <StackPanel Spacing="10">
-          <Button Content="{Binding FileLibraryPaneToggleText}"
-                  HorizontalAlignment="Stretch"
-                  Padding="6,4"
-                  Click="OnToggleFileLibraryPaneCollapsedClicked" />
-          <TextBlock Foreground="#e5e7eb"
-                     FontWeight="Bold"
-                     TextAlignment="Center"
-                     TextWrapping="Wrap"
-                     Text="File Library" />
-        </StackPanel>
       </Border>
     </Grid>
   </DockPanel>

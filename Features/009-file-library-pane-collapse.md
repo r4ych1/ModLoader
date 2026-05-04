@@ -1,11 +1,11 @@
 # Feature 009 - Collapsible File Library Pane
 
 ## Goal
-Wrap the shared file library in its own right-side workspace section and allow that section to collapse into a narrow strip so the left profile pane can expand into the freed space.
+Wrap the shared file library in its own right-side workspace section and allow that section to collapse fully out of view so the left profile pane can expand into the freed space.
 
 ## In Scope
 - Pane-level collapse and expand behavior for the right-side file library section.
-- A dedicated file-library section header with left-aligned collapse control and title.
+- A dedicated file-library section header with title only while expanded.
 - Persistent `IsFileLibraryPaneCollapsed` state across restart.
 - Layout changes that let the left profile pane expand when the file library is collapsed.
 
@@ -17,26 +17,24 @@ Wrap the shared file library in its own right-side workspace section and allow t
 ## Definitions
 - File library pane:
   - The right-side shared library workspace section that contains the selected-profile header plus Source Port, IWAD, and Mod library controls.
-- Collapsed file library strip:
-  - The narrow right-edge state that keeps a visible expand control and file-library label while hiding the full library body.
+- Collapsed file library state:
+  - The hidden right-pane state that removes the file-library pane body and inter-pane gap from view.
 
 ## Rules
 ### Workspace Layout
 - The right-side shared library is rendered inside its own bordered `File Library` section similar in structure to the left profile-management section.
-- The file-library section header contains:
-  - a top-left collapse control
-  - the `File Library` section title
-- The selected-profile header area with `New Profile` remains inside the file-library pane body and keeps its existing behavior.
+- The file-library section header contains the `File Library` section title.
+- The file-library collapse and expand action is invoked from the left profile-management header, using the `Expand` / `Collapse` control to the right of `New Profile`.
+- The selected-profile header area remains inside the file-library pane body and keeps its existing behavior except where this feature explicitly updates pane-collapse interaction.
 - When the file library is expanded:
   - the workspace uses the existing Feature 008 two-pane arrangement
   - the file library fills its default right-side size
 - When the file library is collapsed:
-  - the right side reduces to a narrow strip
-  - the strip remains visible on the right edge
-  - the strip still exposes an expand control
-  - the strip still shows the file-library label
+  - the right file-library pane is not rendered
+  - the spacer gap between the profile pane and file-library pane is not rendered
   - the left profile pane expands to fill the remaining workspace width
 - Collapsing the file library does not move it to the left side and does not overlap the profile pane.
+- The collapsed state does not show a right-edge strip, a secondary expand affordance, or a duplicate `File Library` label.
 
 ### Behavior Preservation
 - File-library pane collapse does not change:
@@ -46,6 +44,10 @@ Wrap the shared file library in its own right-side workspace section and allow t
   - left-pane row launch availability
   - profile auto-save behavior
   - Source Port / IWAD / Mod inner section collapse state
+- Activating `New Profile` while the file library pane is collapsed is the one exception:
+  - the new profile is still created and selected using existing Feature 008 rules
+  - the file library pane expands immediately so the selected-profile header becomes visible
+  - the expanded pane state persists immediately
 - Expanding the file library restores the full file-library pane body without resetting its inner section states.
 
 ### Persistence
@@ -55,19 +57,26 @@ Wrap the shared file library in its own right-side workspace section and allow t
 - Saves that do not contain `IsFileLibraryPaneCollapsed` load with the file library expanded by default.
 
 ## Acceptance Criteria
-### Collapse to narrow strip
+### Collapse to hidden pane
 Given the workspace is rendered with the file library expanded
 When the file-library collapse control is activated
-Then the file library collapses into a narrow strip on the right edge.
-And the strip still shows an expand control.
-And the strip still shows the file-library label.
+Then the file library pane is removed from view.
+And the spacer gap between the panes is removed from view.
 And the left profile pane expands to fill the remaining workspace width.
 
 ### Expand to default size
 Given the file library is collapsed
 When the expand control is activated
 Then the file library returns to its default expanded size.
+And the spacer gap between the panes returns.
 And the selected-profile header area and shared library controls become visible again.
+
+### New profile expands collapsed pane
+Given the file library is collapsed
+When `New Profile` is activated from the left profile-management header
+Then the new profile is created and selected using Feature 008 rules.
+And the file library returns to its default expanded size.
+And the selected-profile header area becomes visible again.
 
 ### Collapse state persists
 Given the user collapses or expands the file library
